@@ -19,21 +19,27 @@
 
   <main>
     <section class="verdict" id="verdict" aria-live="polite"></section>
-    <section class="week" id="week" aria-label="Days of the week"></section>
-    <section class="people" id="people"></section>
-  </main>
 
-  <form class="bar" id="bar" novalidate hidden>
-    <p class="bar-note" id="barNote" role="status"></p>
-    <div class="bar-row">
+    <form class="answer" id="answer" novalidate hidden>
       <label class="name">
         <span>Your name</span>
-        <input id="name" type="text" maxlength="40" autocomplete="given-name" placeholder="Name">
+        <input id="name" type="text" maxlength="40" autocomplete="given-name">
       </label>
-      <button type="button" class="btn quiet" id="cancel" hidden>Cancel</button>
-      <button type="submit" class="btn primary" id="submit">Submit my answer</button>
+      <section class="week" id="week" aria-label="Days of the week"></section>
+      <div class="send">
+        <button type="submit" class="btn primary" id="submit">Submit my answer</button>
+        <button type="button" class="btn quiet" id="cancel" hidden>Cancel</button>
+        <p class="note" id="barNote" role="status"></p>
+      </div>
+    </form>
+
+    <div class="outcome">
+      <section class="results" id="results" aria-live="polite"></section>
+      <section class="people" id="people"></section>
     </div>
-  </form>
+  </main>
+
+  <footer class="foot">Version 0.2</footer>
 
   <script src="app.js"></script>
 </body>

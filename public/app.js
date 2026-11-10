@@ -114,15 +114,23 @@
 
   // ---------- talking to the server ----------
   async function call(body) {
-    const res = await fetch(API, body
-      ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }
-      : { cache: "no-store" });
-    let json = null;
-    try {
-      json = await res.json();
-    } catch {}
-    if (!res.ok || !json) throw new Error((json && json.error) || "Could not reach the poll. Check your connection and try again.");
-    return json;
+    const unreachable = "Could not reach the poll. Check your connection and try again.";
+    let failure = unreachable;
+    // A server hiccup (5xx) or dropped connection is retried quietly; every action is safe to repeat.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt) await new Promise((r) => setTimeout(r, 700 * attempt));
+      let res, json = null;
+      try {
+        res = await fetch(API, body
+          ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }
+          : { cache: "no-store" });
+        json = await res.json();
+      } catch {}
+      if (res && res.ok && json) return json;
+      failure = (json && json.error) || unreachable;
+      if (res && res.status < 500) break;
+    }
+    throw new Error(failure);
   }
   async function act(body, after) {
     if (busy) return;
@@ -161,7 +169,12 @@
         if (byDay[day][t].length === top) leaders.push({ day, t });
       }
     }
-    return { byDay, top, leaders, total: responses.length };
+    const ranked = [];
+    for (const day of Object.keys(byDay)) {
+      for (const t of Object.keys(byDay[day])) ranked.push({ day, t, who: byDay[day][t] });
+    }
+    ranked.sort((a, b) => b.who.length - a.who.length || a.day.localeCompare(b.day) || a.t.localeCompare(b.t));
+    return { byDay, top, leaders, ranked, total: responses.length };
   }
 
   // ---------- rendering ----------
@@ -230,14 +243,6 @@
           pick[key] = !pick[key];
           renderWeek(tally());
         };
-        const rows = Object.keys(t.byDay[day] || {}).sort().map((time) => {
-          const who = t.byDay[day][time];
-          const lead = who.length === t.top;
-          return h("li", { class: lead ? "lead" : "" },
-            h("span", { class: "t" }, time),
-            h("span", { class: "n", "aria-label": `${who.length} ${who.length === 1 ? "person" : "people"}${lead ? ", leading" : ""}` }, String(who.length)),
-            h("span", { class: "who" }, who.join(", ")));
-        });
         return h("article", { class: "day" + (past ? " past" : "") + (day === server.today ? " today" : "") },
           h("p", { class: "date" },
             h("b", {}, fmt(day, { weekday: "short" })),
@@ -247,8 +252,7 @@
             ...PRESETS.map((time) => h("button", { type: "button", class: "chip", "aria-pressed": String(pick[time]), disabled: off, onclick: toggle(time) }, time)),
             h("div", { class: "other" },
               h("button", { type: "button", class: "chip", "aria-pressed": String(pick.other), disabled: off, onclick: toggle("other") }, pick.other ? "Other, at" : "Other time"),
-              pick.other && clock(pick, off))),
-          h("ul", { class: "tally" }, rows));
+              pick.other && clock(pick, off))));
       })
     );
   }
@@ -273,9 +277,37 @@
       list("Minutes", minutes, mm, 1));
   }
 
-  function describe(r) {
-    const parts = Object.keys(r.slots).sort().map((day) => `${fmt(day, { weekday: "short" })} ${r.slots[day].join(" / ")}`);
-    return parts.length ? parts.join(", ") : "Can't make any evening";
+  // Everyone sees this as soon as one answer is in. Most votes first.
+  function renderResults(t) {
+    const box = $("results");
+    if (!poll() || !t.total) {
+      box.replaceChildren();
+      return;
+    }
+    const people = (n) => `${n} ${n === 1 ? "person" : "people"}`;
+    box.replaceChildren(
+      h("h2", {}, "Results so far"),
+      t.ranked.length
+        ? h("ol", {}, ...t.ranked.map((row) => {
+            const lead = row.who.length === t.top;
+            return h("li", { class: lead ? "lead" : "" },
+              h("span", { class: "n", "aria-label": people(row.who.length) }, String(row.who.length)),
+              h("span", { class: "slot" },
+                `${fmt(row.day, { weekday: "long", day: "numeric", month: "short" })}, ${row.t}`,
+                lead ? h("em", {}, t.leaders.length > 1 ? "Tied for the lead" : "Leading") : null),
+              h("span", { class: "who" }, row.who.join(", ")));
+          }))
+        : h("p", {}, "Nobody has picked an evening yet.")
+    );
+  }
+
+  // One line per option, so an answer reads top to bottom.
+  function options(r) {
+    const lines = [];
+    for (const day of Object.keys(r.slots).sort()) {
+      for (const time of r.slots[day]) lines.push(`${fmt(day, { weekday: "short", day: "numeric", month: "short" })}, ${time}`);
+    }
+    return lines.length ? lines : ["Can't make any evening"];
   }
 
   function renderPeople() {
@@ -291,7 +323,7 @@
       h("ul", {}, ...list.map((r) =>
         h("li", { class: mode === "edit" && editingId === r.id ? "editing" : "" },
           h("span", { class: "who" }, r.name, r.id === mineId() ? h("small", {}, " (you)") : null),
-          h("span", { class: "what" }, describe(r)),
+          h("ul", { class: "what" }, ...options(r).map((line) => h("li", {}, line))),
           h("span", { class: "acts" },
             h("button", { type: "button", disabled: busy, "aria-label": `Edit ${r.name}'s answer`, onclick: () => startEdit(r) }, "Edit"),
             h("button", { type: "button", disabled: busy, "aria-label": `Remove ${r.name}'s answer`, onclick: () => removeAnswer(r) }, "Remove")))))
@@ -299,7 +331,7 @@
   }
 
   function renderBar() {
-    const bar = $("bar");
+    const bar = $("answer");
     bar.hidden = !poll();
     if (bar.hidden) return;
     const done = mode === "done";
@@ -313,7 +345,8 @@
     }
     $("barNote").textContent = text;
     $("barNote").classList.toggle("bad", note.bad);
-    $("name").disabled = busy;
+    if (done && current) $("name").value = current.name;
+    $("name").disabled = busy || done;
     $("submit").disabled = busy;
     $("submit").textContent = busy ? "Saving…" : done ? "Change my answer" : current ? "Save changes" : "Submit my answer";
     $("cancel").hidden = done || !current;
@@ -324,6 +357,7 @@
     renderWeeks();
     renderVerdict(t);
     renderWeek(t);
+    renderResults(t);
     renderPeople();
     renderBar();
   }
@@ -337,7 +371,7 @@
     note = { text: "", bad: false };
     $("name").value = r.name;
     render();
-    $("week").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    $("answer").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
   }
 
   function removeAnswer(r) {
@@ -365,7 +399,7 @@
     if (!editingOther) cache.set("name", e.target.value.trim());
   });
 
-  $("bar").addEventListener("submit", (e) => {
+  $("answer").addEventListener("submit", (e) => {
     e.preventDefault();
     if (mode === "done") {
       mode = "edit";
@@ -406,6 +440,7 @@
       if (document.activeElement && document.activeElement.tagName === "SELECT") {
         const t = tally();
         renderVerdict(t);
+        renderResults(t);
         renderPeople();
       } else render();
     } catch {}
@@ -419,7 +454,7 @@
       if (!server.polls[server.weeks.this] && server.polls[server.weeks.next]) which = "next";
       loadForm();
       render();
-      setInterval(refresh, 20000);
+      setInterval(refresh, 30000);
       document.addEventListener("visibilitychange", refresh);
     } catch (err) {
       $("verdict").replaceChildren(
