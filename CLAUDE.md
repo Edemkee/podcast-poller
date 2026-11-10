@@ -58,4 +58,4 @@ Keep these unless the owner says otherwise.
 2. Add any new owner decision to this file.
 3. Run `node test/core.test.mjs`.
 4. Commit and push to `main`.
-5. Create an annotated tag named `v0.N` on that commit. The tag message is `Version 0.N` followed by the change delta, the same bullet list as the `CHANGELOG.md` section. Push the tag.
+5. GitHub tags the commit by itself: the "Tag version" workflow (`.github/workflows/tag-version.yml`, `scripts/tag-version.mjs`) creates the annotated tag `v0.N` with the message `Version 0.N` followed by the change delta, taken from the `CHANGELOG.md` section. Check the tag appeared. Claude sessions cannot push tags directly, so do not replace the workflow with a manual step.

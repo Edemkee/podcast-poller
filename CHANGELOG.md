@@ -10,6 +10,7 @@
 - Per-day vote lists inside the day cards are replaced by the results list.
 - The version number is shown in the page footer.
 - Added CLAUDE.md with the project's decisions and the versioning rules.
+- Every version is tagged on GitHub automatically, with this change list as the tag message.
 
 ## 0.1
 
