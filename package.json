@@ -1,0 +1,16 @@
+{
+  "name": "podcast-poll",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node dev-server.mjs",
+    "test": "node test/core.test.mjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "latest"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

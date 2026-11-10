@@ -1,0 +1,261 @@
+:root {
+  --paper: #e9edf4;
+  --surface: #ffffff;
+  --ink: #141b33;
+  --muted: #56607c;
+  --line: #cfd6e3;
+  --pick: #2443b8;        /* a time you chose */
+  --pick-ink: #ffffff;
+  --signal: #d7263d;      /* the "on air" lamp: the slot that is winning */
+  --signal-soft: #fbe4e7;
+  --display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #10152a;
+    --surface: #1a2140;
+    --ink: #eef1f8;
+    --muted: #a3acc6;
+    --line: #323b60;
+    --pick: #8ea6ff;
+    --pick-ink: #0d1330;
+    --signal: #ff5a6e;
+    --signal-soft: #3c1d2b;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 1rem/1.45 var(--body);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; }
+:focus-visible { outline: 3px solid var(--pick); outline-offset: 2px; }
+
+.top, main, .bar-row, .bar-note {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-inline: max(16px, env(safe-area-inset-left));
+}
+main { flex: 1; padding-bottom: 28px; }
+
+/* ---------- header ---------- */
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 16px;
+}
+.brand { margin: 0; font: 700 1.05rem/1 var(--display); letter-spacing: -0.01em; }
+.weeks { display: flex; gap: 4px; padding: 4px; background: var(--surface); border-radius: 999px; }
+.weeks button {
+  border: 0;
+  background: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  min-height: 40px;
+  line-height: 1.15;
+  text-align: left;
+}
+.weeks button small { display: block; color: var(--muted); font-size: 0.8rem; }
+.weeks button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+.weeks button[aria-selected="true"] small { color: inherit; opacity: 0.75; }
+
+/* ---------- verdict: the answer the page exists to give ---------- */
+.verdict { padding: 28px 0 22px; }
+.verdict h1 {
+  margin: 0;
+  font: 700 clamp(2rem, 6.2vw, 4.4rem)/0.98 var(--display);
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.verdict h1 .lamp {
+  display: inline-block;
+  width: 0.36em; height: 0.36em;
+  margin-right: 0.22em;
+  border-radius: 50%;
+  background: var(--signal);
+  vertical-align: 0.14em;
+}
+.verdict p { margin: 10px 0 0; color: var(--muted); max-width: 60ch; }
+.verdict .btn { margin-top: 16px; }
+
+/* ---------- buttons ---------- */
+.btn {
+  border: 1.5px solid var(--ink);
+  background: none;
+  border-radius: 10px;
+  padding: 0 18px;
+  min-height: 46px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.btn.primary { background: var(--ink); color: var(--paper); }
+.btn.quiet { border-color: var(--line); font-weight: 400; }
+.btn:disabled { opacity: 0.5; }
+
+/* ---------- the week ---------- */
+.week { display: grid; gap: 8px; }
+.day {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-areas: "date picks" "tally tally";
+  gap: 0 12px;
+  align-items: start;
+}
+.day.today { box-shadow: inset 0 0 0 2px var(--ink); }
+.day.past { background: none; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); }
+.date { grid-area: date; margin: 0; line-height: 1.1; }
+.date b { display: block; font: 700 1.35rem/1 var(--display); letter-spacing: -0.02em; }
+.date span { font-size: 0.9rem; color: var(--muted); }
+.date em { display: block; font-style: normal; font-size: 0.8rem; margin-top: 4px; }
+
+.picks { grid-area: picks; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  flex: 1 1 78px;
+  min-height: 46px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: none;
+  padding: 0 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.chip[aria-pressed="true"] { background: var(--pick); border-color: var(--pick); color: var(--pick-ink); }
+.chip:disabled { opacity: 0.55; }
+.chip[aria-pressed="true"]:disabled { opacity: 0.85; }
+.other { flex: 1 1 100%; display: flex; gap: 6px; }
+.other .chip { font-weight: 400; }
+.clock { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; font-weight: 700; }
+.clock select {
+  min-height: 46px;
+  min-width: 3.6em;
+  border: 1.5px solid var(--pick);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 0 6px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.clock select:disabled { opacity: 0.85; }
+
+.tally { grid-area: tally; list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; }
+.tally:empty { display: none; }
+.tally li {
+  display: grid;
+  grid-template-columns: 3.4em 1.6em minmax(0, 1fr);
+  gap: 6px;
+  align-items: baseline;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: var(--paper);
+  font-size: 0.92rem;
+}
+.tally .t { font-weight: 700; font-variant-numeric: tabular-nums; }
+.tally .n { font-weight: 700; text-align: center; }
+.tally .who { color: var(--muted); overflow-wrap: anywhere; }
+.tally li.lead { background: var(--signal-soft); box-shadow: inset 3px 0 0 var(--signal); }
+.tally li.lead .who { color: var(--ink); }
+
+/* Wide screens: the week becomes seven columns, read left to right like a calendar. */
+@media (min-width: 980px) {
+  .week { grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: start; }
+  .day {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "date" "picks" "tally";
+    padding: 14px 12px;
+  }
+  .picks { flex-direction: column; flex-wrap: nowrap; }
+  .chip { flex: 0 0 auto; width: 100%; }
+  .other { flex: 0 0 auto; flex-direction: column; }
+  .clock select { flex: 1; min-width: 0; }
+  .picks { margin-top: 10px; }
+  .tally li { grid-template-columns: 3.2em minmax(0, 1fr); }
+  .tally .who { grid-column: 1 / -1; }
+  .tally .n { text-align: right; }
+}
+/* Tablets: two days side by side. */
+@media (min-width: 640px) and (max-width: 979px) {
+  .week { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---------- who answered ---------- */
+.people { padding-top: 26px; }
+.people h2 { margin: 0 0 10px; font: 700 1.25rem/1.1 var(--display); letter-spacing: -0.01em; }
+.people ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+.people li {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  align-items: center;
+}
+.people li.editing { box-shadow: inset 0 0 0 2px var(--pick); }
+.people .who { font-weight: 700; overflow-wrap: anywhere; }
+.people .who small { font-weight: 400; color: var(--muted); }
+.people .what { grid-column: 1; color: var(--muted); font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+.people .acts { grid-row: 1 / span 2; grid-column: 2; display: flex; gap: 6px; }
+.people .acts button {
+  border: 1.5px solid var(--line);
+  background: none;
+  border-radius: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+/* ---------- answer bar ---------- */
+.bar {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  border-top: 1.5px solid var(--ink);
+  padding-block: 10px max(10px, env(safe-area-inset-bottom));
+}
+.bar-note { margin-block: 0 8px; font-size: 0.92rem; }
+.bar-note:empty { display: none; }
+.bar-note.bad { color: var(--signal); font-weight: 700; }
+.bar-row { display: flex; gap: 8px; align-items: center; }
+.name { flex: 1 1 auto; min-width: 0; max-width: 320px; }
+.name span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.name input {
+  width: 100%;
+  min-height: 46px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  padding: 0 12px;
+}
+.bar-row .btn.primary { margin-left: auto; }
+.bar.done .name { display: none; }
+.bar.done .bar-note { margin: 0; }
+.bar.done { display: flex; flex-wrap: wrap; align-items: center; }
+.bar.done .bar-note { flex: 1 1 200px; width: auto; }
+.bar.done .bar-row { width: auto; flex: 0 0 auto; margin: 0; }
+@media (max-width: 420px) {
+  .btn { padding: 0 12px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chip, .weeks button { transition: background-color 0.12s, border-color 0.12s; }
+}
