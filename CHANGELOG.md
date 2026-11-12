@@ -1,6 +1,20 @@
 # Changelog
 
-## 0.2
+## v0.2.1 - 2026-11-12
+
+Patch: project housekeeping, no change to how the poll behaves.
+
+### Added
+- PLAN.md with done and open items.
+- VERSION file and .env.example.
+
+### Changed
+- Versions are now MAJOR.MINOR.PATCH, raised once per pull request; changes go through pull requests.
+- CLAUDE.md is a dated log of decisions.
+- .gitignore also covers .env files, keys and certificates, and OS and editor clutter.
+- The tagging workflow reads VERSION and the new changelog headings.
+
+## v0.2 - 2026-11-10
 
 - Results so far: a ranked list every visitor sees once one answer is in, with the leading vote count highlighted and labelled.
 - Each person's answer now lists its options one per line.
@@ -12,7 +26,7 @@
 - Added CLAUDE.md with the project's decisions and the versioning rules.
 - Every version is tagged on GitHub automatically, with this change list as the tag message.
 
-## 0.1
+## v0.1 - 2026-11-10
 
 - First release: create a poll for this week or next week with the seven dated days.
 - Start times 19:00, 20:00 and a free-choice time per day.
