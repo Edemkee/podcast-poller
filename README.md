@@ -3,6 +3,8 @@
 A weekly poll for picking the podcast recording evening. One page, one small
 server function, one JSON file of data.
 
+Live at https://podcast-poller.netlify.app/
+
 ## Put it online (free Netlify account, about 10 minutes)
 
 The site needs Netlify to install one package and bundle the function, so deploy

@@ -8,6 +8,7 @@ Newest decisions first. Each entry: date, decision, reason.
 
 ## 2026-11-12
 
+- **The live site is https://podcast-poller.netlify.app/.** Use it to check a change after the owner merges and Netlify deploys; the footer shows which version is live. Reason: the address was not written down and a session had to ask for it.
 - **Project size: small, not a game.** Required documents are README.md, .gitignore, VERSION, PLAN.md, CLAUDE.md and CHANGELOG.md. FEATURES.md, ARCHITECTURE.md and CI are optional and tracked as open items in PLAN.md. Reason: the owner said so when adopting the dev workflow.
 - **Project documents have uppercase names** in the repository root: README.md, CLAUDE.md, PLAN.md, CHANGELOG.md, and FEATURES.md or ARCHITECTURE.md if they are ever added. Reason: dev workflow.
 - **Versions are `MAJOR.MINOR.PATCH`, raised once per pull request.** A feature or meaningful change raises MINOR and resets PATCH (0.9.2 to 0.10.0, 0.99.0 to 0.100.0). A fix, tweak or docs-only change raises PATCH. MAJOR changes only when the owner explicitly asks. Reason: dev workflow; it replaces the minor-only `0.N` rule of 2026-11-10, whose tags `v0.1` and `v0.2` stay as they are.

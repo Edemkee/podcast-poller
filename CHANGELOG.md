@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.2 - 2026-11-12
+
+Patch: documentation only, no change to how the poll behaves.
+
+### Changed
+- Confirmed on the live site that creating a poll works on the first click (plan item 7 done).
+- README and CLAUDE.md now give the live address, https://podcast-poller.netlify.app/.
+
 ## v0.2.1 - 2026-11-12
 
 Patch: project housekeeping, no change to how the poll behaves.
