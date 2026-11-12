@@ -1,3 +1,30 @@
-node_modules
-data
-.netlify
+# dependencies and build output
+node_modules/
+.netlify/
+dist/
+build/
+
+# local data written by dev-server.mjs
+data/
+
+# configuration with real values (keep .env.example)
+.env
+.env.*
+!.env.example
+
+# keys, certificates, credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+credentials*.json
+
+# OS and editor clutter
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.log

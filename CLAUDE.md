@@ -1,61 +1,33 @@
-# podcast-poller
+# podcast-poller: operative decisions
 
 A weekly poll for picking the podcast recording evening. Hosted on a free Netlify
-account, deployed automatically from the `main` branch of this repository.
+account, which deploys the `main` branch automatically. This project follows the
+dev-workflow skill; read `plan.md` and `CHANGELOG.md` alongside this file.
 
-## Layout of the code
+Newest decisions first. Each entry: date, decision, reason.
 
-- `public/` is the whole front end: `index.html`, `style.css`, `app.js`. No build step, no framework.
-- `src/poll-core.mjs` holds every poll rule (week maths, validation, purge). It has no Netlify imports.
-- `netlify/functions/poll.mjs` is the only server code: `GET`/`POST /api/poll`, a thin wrapper that connects the core to Netlify Blobs.
-- `dev-server.mjs` runs the same core locally against `data/polls.json`.
-- `test/core.test.mjs` tests the core. Run `node test/core.test.mjs` before every release.
+## 2026-11-12
 
-## Decisions made by the owner
+- **Project size: small, not a game.** Required documents are README.md, .gitignore, VERSION, plan.md, CLAUDE.md and CHANGELOG.md. features.md, architecture.md and CI are optional and tracked as open items in plan.md. Reason: the owner said so when adopting the dev workflow.
+- **Versions are `MAJOR.MINOR.PATCH`, raised once per pull request.** A feature or meaningful change raises MINOR and resets PATCH (0.9.2 to 0.10.0, 0.99.0 to 0.100.0). A fix, tweak or docs-only change raises PATCH. MAJOR changes only when the owner explicitly asks. Reason: dev workflow; it replaces the minor-only `0.N` rule of 2026-11-10, whose tags `v0.1` and `v0.2` stay as they are.
+- **The version lives in four places that must agree:** `VERSION`, `package.json`, the footer in `public/index.html`, and the newest `CHANGELOG.md` heading (`## vX.Y.Z - YYYY-MM-DD`). Reason: Netlify serves static files, so the footer cannot read VERSION at run time.
+- **Every change goes through a pull request against `main`** from a short-lived branch (`feature/…`, `fix/…`, `chore/…`). The owner merges unless they ask Claude to. Reason: dev workflow.
+- **Merging to `main` publishes the site and tags the version.** Netlify deploys `main`; the "Tag version" workflow (`.github/workflows/tag-version.yml`, `scripts/tag-version.mjs`) creates the annotated tag `vX.Y.Z` with the changelog entry as its message. Reason: Claude sessions cannot push tags or create releases on this repository, so do not replace the workflow with a manual step. Check the tag appeared after a merge.
+- **No secrets in the repository.** The only setting is `POLL_TZ`, which is not secret and is documented in `.env.example`. Review the staged diff before every commit. Reason: dev workflow.
 
-Keep these unless the owner says otherwise.
+## 2026-11-10
 
-### Poll
-
-- One poll per week, Monday to Sunday, created for "this week" or "next week" with real dates.
-- Each day offers 19:00, 20:00 and a free-choice "Other time". Several can be ticked per day.
-- The free-choice time is picked with 24-hour hour and minute lists, never the browser's own time field (it shows AM/PM on some devices).
-- Days of the current week that have already passed are shown but cannot be picked.
-- Weeks and "today" are judged in Europe/Budapest time (`POLL_TZ` overrides it).
-
-### People and answers
-
-- No logins. People type a name; the browser remembers it and which answer is theirs (`localStorage`).
-- Submitting makes an answer final and locks the form. "Change my answer" reopens it.
-- For now anyone can edit or remove anyone's answer.
-- Two answers cannot share a name. Submitting under an existing name updates that answer.
-
-### Storage
-
-- All data is one rolling JSON document, `polls.json`, in the Netlify Blobs store `podcast-poll` (Netlify cannot write to a real file on disk).
-- A week's poll is deleted once its Sunday has passed. Next week's poll becomes this week's on Monday with its answers.
-- Saves are conditional (etag) and retried, so two people saving at once do not overwrite each other.
-- Netlify Blobs sometimes rejects a call with a 401. The function retries each storage call three times and the page retries a failed request, so do not remove those retries.
-
-### Page layout
-
-- Works on phone, tablet and desktop: stacked day rows on a phone, two columns on a tablet, seven columns on a wide screen.
-- Top to bottom: headline with the leading slot, the name box, the week table, then the submit control under the table on the left.
-- Below that, "Results so far" is visible to every visitor as soon as one answer exists, most votes first, with the leading vote count highlighted and labelled.
-- Each person's answer lists its options in a column, one option per line, never side by side.
-- Form controls must stay readable in dark mode: text in the time lists is near-white on the dark blue surface.
-- The current version number is shown in the page footer.
-
-## Versioning
-
-- Versions are `0.N`. Every release raises the minor number by one: 0.1, 0.2 … 0.9, 0.10, 0.11 … 0.99, 0.100.
-- Never raise the major number unless the owner says so, however large the minor number gets.
-- Every change that reaches `main` is a new version.
-
-### Releasing a version
-
-1. Raise the version in three places: the footer in `public/index.html` (`Version 0.N`), `package.json` (`0.N.0`), and a new section at the top of `CHANGELOG.md`.
-2. Add any new owner decision to this file.
-3. Run `node test/core.test.mjs`.
-4. Commit and push to `main`.
-5. GitHub tags the commit by itself: the "Tag version" workflow (`.github/workflows/tag-version.yml`, `scripts/tag-version.mjs`) creates the annotated tag `v0.N` with the message `Version 0.N` followed by the change delta, taken from the `CHANGELOG.md` section. Check the tag appeared. Claude sessions cannot push tags directly, so do not replace the workflow with a manual step.
+- **Storage retries stay.** The function retries each Netlify Blobs call three times and the page retries a failed request. Reason: Netlify Blobs sometimes answers 401 and creating a poll took three clicks.
+- **Results are visible to every visitor once one answer exists,** most votes first, with the leading vote count highlighted and labelled. Reason: owner request.
+- **Each person's answer lists its options in a column,** one per line, never side by side. Reason: owner request.
+- **Page order: headline with the leading slot, name box, week table, submit control under the table on the left,** then results and answers. No bar fixed to the bottom. Reason: owner request.
+- **Form controls must be readable in dark mode;** the time lists use near-white text on the dark blue surface. Reason: they were unreadable in 0.1.
+- **The version number is shown in the page footer.** Reason: lets the owner see which version Netlify is serving.
+- **The free-choice time uses 24-hour hour and minute lists,** not the browser's time field. Reason: the browser field shows AM/PM on some devices.
+- **One poll per week, Monday to Sunday,** created for "this week" or "next week" with real dates. Each day offers 19:00, 20:00 and a free-choice time; several can be ticked. Days already past are shown but cannot be picked. Reason: owner brief.
+- **Weeks and "today" are judged in Europe/Budapest time;** `POLL_TZ` overrides it. Reason: the owner's time zone.
+- **No logins.** A typed name and "which answer is mine" are kept in the browser (`localStorage`). Submitting locks the answer; "Change my answer" reopens it. Anyone can edit or remove anyone's answer for now. Reason: owner brief.
+- **Two answers cannot share a name;** submitting under an existing name updates that answer. Reason: a cleared browser cache should not create duplicates.
+- **All data is one rolling JSON document,** `polls.json`, in the Netlify Blobs store `podcast-poll`. A week is deleted once its Sunday has passed; next week's poll becomes this week's on Monday. Saves are conditional (etag) and retried. Reason: the owner wanted a flat file, and Netlify cannot write to disk.
+- **Layout of the code:** `public/` is the whole front end with no build step or framework; `src/poll-core.mjs` holds every poll rule and has no Netlify imports; `netlify/functions/poll.mjs` is a thin wrapper around it; `dev-server.mjs` runs the same core locally. Reason: the rules can be tested without Netlify (`node test/core.test.mjs`).
+- **Responsive layout:** stacked day rows on a phone, two columns on a tablet, seven on a wide screen. Reason: owner brief.
