@@ -54,7 +54,7 @@ Locally the data is written to `data/polls.json`.
 
 ## Working on it
 
-- `plan.md` lists what is done and what is open; `CHANGELOG.md` says what changed in each version; `CLAUDE.md` logs the decisions.
+- `PLAN.md` lists what is done and what is open; `CHANGELOG.md` says what changed in each version; `CLAUDE.md` logs the decisions.
 - The version is in `VERSION` and in the page footer. Changes arrive as pull requests; merging one to `main` publishes the site and tags the version.
 
 ## Good to know

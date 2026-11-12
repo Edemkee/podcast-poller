@@ -5,7 +5,7 @@
 Patch: project housekeeping, no change to how the poll behaves.
 
 ### Added
-- plan.md with done and open items.
+- PLAN.md with done and open items.
 - VERSION file and .env.example.
 
 ### Changed
