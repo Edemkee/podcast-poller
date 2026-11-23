@@ -9,11 +9,12 @@ Tests:
 
 ## Feature: Weekly poll (major)
 - Description: one poll per week, Monday to Sunday, created for "this week" or "next week" with real dates. Each day offers 19:00, 20:00 and a free-choice time; several can be ticked. Days already past are shown but cannot be picked.
-- Related minor features: the "This week / Next week" switch; the "Create poll for …" button; the "Today" and "Passed" day labels; the page opens on next week if only that poll exists.
+- Related minor features: the "This week / Next week" switch; the "Create poll for …" button (needs the human check since v0.6.0, with its message shown under the button); the "Today" and "Passed" day labels; the page opens on next week if only that poll exists.
 - Config: `POLL_TZ` (default `Europe/Budapest`) decides "today" and when a week ends; preset times are `PRESETS` in `public/app.js`.
-- Tests: core: week maths, month/year rollover, time zone, creating this and next week's poll. browser: creating this week's poll, seven days, past days disabled, today marked. Not covered: the "Next week" switch in the browser.
+- Tests: core: week maths, month/year rollover, time zone, creating this and next week's poll, creating refused without the human check. browser: creating this week's poll (through the widget), seven days, past days disabled, today marked, a failed human check creating nothing. Not covered: the "Next week" switch in the browser.
 - Changes:
   - v0.1: first release.
+  - v0.6.0: creating a poll needs the human check.
 
 ## Feature: Answers (major)
 - Description: a person types a name, ticks the evenings they can record and submits. Submitting locks the answer; "Change my answer" reopens it. Anyone can edit or remove any answer (with the password, see below). Two answers cannot share a name: submitting under an existing name updates that answer.
@@ -35,12 +36,13 @@ Tests:
   - v0.5.0: checked only after the timeout and the human check; refusals say how many tries are left.
 
 ## Feature: Human check (major)
-- Description: Cloudflare Turnstile (free plan) confirms that a human is saving or removing an answer. The widget sits above the Submit button and stays invisible unless Cloudflare asks for a click. Each vote or removal carries a fresh token; the server confirms it with Cloudflare's siteverify before it looks at the password, and fails closed (no secret key, no token, Cloudflare unreachable, rejected token).
+- Description: Cloudflare Turnstile (free plan) confirms that a human is creating a poll or saving or removing an answer. The widget sits under the active button (under "Create poll" when there is no poll, else under the answer form) and stays invisible unless Cloudflare asks for a click. Each create, vote or removal carries a fresh token; the server confirms it with Cloudflare's siteverify before it looks at the password, and fails closed (no secret key, no token, Cloudflare unreachable, rejected token).
 - Related minor features: "Checking that you are human…" while the token arrives; a 15-second wait for the token, then a message; the widget is reset after every request; votes and removals are not retried automatically (a token works once).
 - Config: `TURNSTILE_SITE_KEY` (public, served to the page by GET `/api/poll`) and `TURNSTILE_SECRET_KEY` (secret, only in Netlify). Locally and in tests, Cloudflare's dummy keys. `TURNSTILE_VERIFY_URL` (dev server only) points the check at the browser test's stand-in.
-- Tests: core: missing, empty and rejected tokens refused for votes and removals; a bot never reaches the password check and does not count towards the timeout; not configured refuses; Cloudflare unreachable gives 503; nothing saved; the verifier's request to Cloudflare (secret, token, IP), its answers, and no call without a usable token. browser: every save and removal goes through the widget (Cloudflare's test keys in CI, a stand-in with `TURNSTILE_STUB=1`); a failing secret key saves nothing and says why. Not covered: a real interactive challenge.
+- Tests: core: missing, empty and rejected tokens refused for creating, votes and removals; a bot never reaches the password check and does not count towards the timeout; not configured refuses; Cloudflare unreachable gives 503; nothing saved; the verifier's request to Cloudflare (secret, token, IP), its answers, and no call without a usable token. browser: every save and removal goes through the widget (Cloudflare's test keys in CI, a stand-in with `TURNSTILE_STUB=1`); a failing secret key creates no poll and says why under the button. Not covered: a real interactive challenge.
 - Changes:
   - v0.5.0: first release.
+  - v0.6.0: also on creating a poll; the widget moved under the active button.
 
 ## Feature: Timeout after wrong passwords (major)
 - Description: 3 wrong passwords in a row from one connection mean a 15-minute wait for votes and removals, even with the right password. A right password clears the count; wrong passwords more than an hour apart do not add up; failed human checks do not count. Each connection is one client IP address, stored only as a hash.

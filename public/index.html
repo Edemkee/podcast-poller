@@ -36,12 +36,14 @@
       </div>
       <section class="week" id="week" aria-label="Days of the week"></section>
       <div class="send">
-        <div class="human" id="human" aria-label="Human check"></div>
         <button type="submit" class="btn primary" id="submit">Submit my answer</button>
         <button type="button" class="btn quiet" id="cancel" hidden>Cancel</button>
         <p class="note" id="barNote" role="status"></p>
       </div>
     </form>
+    <!-- Cloudflare's human check: under the form's buttons, or under "Create poll" when
+         there is no poll yet. Invisible unless Cloudflare asks for a click. -->
+    <div class="human" id="human" aria-label="Human check"></div>
 
     <div class="outcome">
       <section class="results" id="results" aria-live="polite"></section>
@@ -49,7 +51,7 @@
     </div>
   </main>
 
-  <footer class="foot">Version 0.5.0</footer>
+  <footer class="foot">Version 0.6.0</footer>
 
   <script src="app.js"></script>
   <!-- Cloudflare Turnstile, the human check. Loaded after app.js, which defines onTurnstileLoad. -->

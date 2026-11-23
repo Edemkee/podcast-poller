@@ -27,7 +27,8 @@ it from a Git repository rather than by dragging the folder into the browser.
    a name, add your `…netlify.app` hostname, leave the mode on "Managed", and
    create it. Copy the two keys into Netlify's environment variables:
    `TURNSTILE_SITE_KEY` (the site key) and `TURNSTILE_SECRET_KEY` (the secret
-   key), then redeploy. Without them every answer is refused.
+   key), then redeploy. Without them no poll can be created and every answer
+   is refused.
 6. Open the `…netlify.app` address Netlify gives you, create this week's poll
    and share the link together with the password.
 
@@ -94,8 +95,8 @@ Locally the data is written to `data/polls.json` and `data/attempts.json`.
 ## Good to know
 
 - There are no logins. Submitting, changing or removing an answer needs the
-  shared password and Cloudflare's human check; anyone with the link can still
-  see the poll and create one.
+  shared password and Cloudflare's human check; creating a poll needs the human
+  check only; anyone with the link can see the poll.
   Do not post the link publicly.
 - The browser remembers your name and which answer is yours. In a private
   window or after clearing site data, you get a blank form; submitting under
