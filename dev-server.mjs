@@ -1,13 +1,14 @@
 // Local preview without Netlify: `node dev-server.mjs` then open http://localhost:8888
-// Uses the same rules as the live site, with data kept in ./data/polls.json.
+// Uses the same rules as the live site, with data kept in ./data/polls.json
+// (or the file named by DATA_FILE, which the browser test uses).
 import http from "node:http";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import { dirname, extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { handle } from "./src/poll-core.mjs";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
-const dataFile = join(root, "data", "polls.json");
+const dataFile = process.env.DATA_FILE || join(root, "data", "polls.json");
 const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml" };
 
 const store = {
@@ -19,7 +20,7 @@ const store = {
     }
   },
   async write(data) {
-    await mkdir(join(root, "data"), { recursive: true });
+    await mkdir(dirname(dataFile), { recursive: true });
     await writeFile(dataFile, JSON.stringify(data, null, 2));
     return true;
   },

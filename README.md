@@ -59,10 +59,17 @@ Needs Node 20 or newer, nothing else:
     POLL_PASSWORD=try-me node dev-server.mjs   # then open http://localhost:8888
     node test/core.test.mjs  # checks the poll rules
 
+The browser walkthrough (phone, tablet, desktop) also needs Playwright:
+
+    npm install --no-save playwright@1.63.0
+    npx playwright install chromium
+    npm run test:browser
+
 Locally the data is written to `data/polls.json`.
 
 ## Working on it
 
+- `FEATURES.md` lists the features, their settings and their tests; `ARCHITECTURE.md` shows how the parts fit together.
 - `PLAN.md` lists what is done and what is open; `CHANGELOG.md` says what changed in each version; `CLAUDE.md` logs the decisions.
 - Every pull request runs the tests and the version check on GitHub (the "CI" check); merge only when it is green.
 - The version is in `VERSION` and in the page footer. Changes arrive as pull requests; merging one to `main` publishes the site and tags the version.
