@@ -3,8 +3,12 @@
 //   npm install --no-save playwright@1.63.0 && npx playwright install chromium
 //   npm run test:browser
 // CHROME_PATH=/path/to/chrome uses an installed Chrome instead of Playwright's Chromium.
+// The human check uses Cloudflare Turnstile's public test keys, which always pass (or,
+// for one check, always fail). Where Cloudflare cannot be reached, TURNSTILE_STUB=1 swaps
+// in a stand-in for Cloudflare's widget script and its siteverify endpoint.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import http from "node:http";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,14 +18,48 @@ const PW = "browser-test-password"; // made up; the real one lives only in Netli
 const NOW = "2026-11-11T10:00:00Z"; // a Wednesday: Mon 9 and Tue 10 Nov have passed
 const VERSION = readFileSync("VERSION", "utf8").trim();
 const scratch = mkdtempSync(join(tmpdir(), "poll-browser-"));
+// Cloudflare's documented dummy keys (public, not secrets): "1x…" always passes, "2x…" always fails.
+const TEST_SITE_KEY = "1x00000000000000000000AA";
+const PASS_SECRET = "1x0000000000000000000000000000000AA";
+const FAIL_SECRET = "2x0000000000000000000000000000000AA";
+const DUMMY_TOKEN = "XXXX.DUMMY.TOKEN.XXXX";
+const STUB = process.env.TURNSTILE_STUB === "1";
+
+// The stand-in for Cloudflare (TURNSTILE_STUB=1 only): a siteverify that behaves like the
+// test keys, and a widget script that hands out the dummy token.
+let verifyUrl = "";
+if (STUB) {
+  const stub = http.createServer(async (req, res) => {
+    let raw = "";
+    for await (const c of req) raw += c;
+    const form = new URLSearchParams(raw);
+    const success = form.get("secret") === PASS_SECRET && form.get("response") === DUMMY_TOKEN;
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify(success ? { success } : { success, "error-codes": ["invalid-input-response"] }));
+  });
+  await new Promise((r) => stub.listen(0, r));
+  stub.unref();
+  verifyUrl = `http://localhost:${stub.address().port}/siteverify`;
+}
+const fakeWidget = `(() => {
+  const widgets = {}; let n = 0;
+  const issue = (id) => setTimeout(() => widgets[id].callback("${DUMMY_TOKEN}"), 50);
+  window.turnstile = {
+    render(el, opts) { const id = String(++n); widgets[id] = opts; issue(id); return id; },
+    reset(id) { issue(id); },
+  };
+  window.onTurnstileLoad && window.onTurnstileLoad();
+})();`;
 let n = 0;
 const ok = (name) => console.log("ok", ++n, name);
 
 // Starts the dev server with its own empty data file; resolves with its address.
-function startServer(port, label) {
+function startServer(port, label, secret = PASS_SECRET) {
   const child = spawn(process.execPath, ["dev-server.mjs"], {
     env: { ...process.env, PORT: String(port), POLL_PASSWORD: PW, FAKE_NOW: NOW,
-      POLL_TZ: "Europe/Budapest", DATA_FILE: join(scratch, label, "polls.json") },
+      POLL_TZ: "Europe/Budapest", DATA_FILE: join(scratch, label, "polls.json"),
+      TURNSTILE_SITE_KEY: TEST_SITE_KEY, TURNSTILE_SECRET_KEY: secret,
+      ...(STUB ? { TURNSTILE_VERIFY_URL: verifyUrl } : {}) },
     stdio: ["ignore", "pipe", "inherit"],
   });
   return new Promise((resolve, reject) => {
@@ -44,6 +82,8 @@ try {
     const context = await browser.newContext({
       viewport: { width: size.width, height: size.height }, colorScheme: size.scheme, hasTouch: size.touch,
     });
+    if (STUB) await context.route("https://challenges.cloudflare.com/turnstile/**", (route) =>
+      route.fulfill({ contentType: "text/javascript", body: fakeWidget }));
     const page = await context.newPage();
     page.on("dialog", (d) => d.accept()); // "Remove …'s answer?"
     const note = () => page.locator("#barNote").innerText();
@@ -126,11 +166,51 @@ try {
       await page.getByRole("heading", { name: "No evening picked yet" }).waitFor();
       assert.equal(await answers(), 0);
       ok(`${tag} removing needs the password; with it the answer is gone`);
+
+      if (size.label === "desktop") {
+        await page.locator("#name").fill("Guesser");
+        await page.locator("#password").fill("guess-1");
+        await page.locator("#submit").click();
+        await page.getByText("2 tries left before a 15-minute wait").waitFor();
+        await page.locator("#password").fill("guess-2");
+        await page.locator("#submit").click();
+        await page.getByText("1 try left before a 15-minute wait").waitFor();
+        await page.locator("#password").fill("guess-3");
+        await page.locator("#submit").click();
+        await page.getByText("Wrong password, 3 times in a row. Try again in 15 minutes.").waitFor();
+        await page.locator("#password").fill(PW);
+        await page.locator("#submit").click();
+        await page.getByText("Too many wrong passwords. Try again in 15 minutes.").waitFor();
+        assert.equal(await answers(), 0);
+        ok(`${tag} three wrong passwords time the visitor out, even for the right one`);
+      }
     } catch (err) {
       const shot = join(tmpdir(), `poll-browser-${size.label}.png`);
       await page.screenshot({ path: shot, fullPage: true }).catch(() => {});
       console.error(`${tag} failed; screenshot: ${shot}`);
       throw err;
+    } finally {
+      await context.close();
+      child.kill();
+    }
+  }
+
+  // A human check that fails: nothing is saved, and the page says why.
+  {
+    const { child, url } = await startServer(port++, "not-human", FAIL_SECRET);
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    if (STUB) await context.route("https://challenges.cloudflare.com/turnstile/**", (route) =>
+      route.fulfill({ contentType: "text/javascript", body: fakeWidget }));
+    const page = await context.newPage();
+    try {
+      await page.goto(url);
+      await page.getByRole("button", { name: /Create poll for 9–15 Nov/ }).click();
+      await page.locator("#name").fill("Robot");
+      await page.locator("#password").fill(PW);
+      await page.locator("#submit").click();
+      await page.getByText("Could not confirm you are human.").waitFor();
+      assert.equal(await page.locator(".people > ul > li").count(), 0);
+      ok("[desktop] a failed human check saves nothing and says why");
     } finally {
       await context.close();
       child.kill();

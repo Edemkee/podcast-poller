@@ -1,9 +1,9 @@
 // Netlify Function: GET/POST /api/poll
-// Keeps every poll in a single JSON file ("polls.json") in Netlify Blobs.
+// Keeps every poll in a single JSON file ("polls.json") in Netlify Blobs, and the
+// wrong-password counts per connection in "attempts.json" next to it.
 import { getStore } from "@netlify/blobs";
 import { handle } from "../../src/poll-core.mjs";
-
-const KEY = "polls.json";
+import { turnstileVerifier } from "../../src/turnstile.mjs";
 
 // Netlify's storage now and then refuses a call (seen as "401" in the function log).
 // Try each call a few times before giving up. Repeating a conditional save is safe:
@@ -22,22 +22,26 @@ async function steady(what, fn) {
   throw last;
 }
 
-export default async (req) => {
-  const blobs = getStore({ name: "podcast-poll", consistency: "strong" });
-
-  const store = {
+// One JSON document in the store, read and saved conditionally (etag).
+function document(blobs, key) {
+  return {
     async read() {
-      const found = await steady("read", () => blobs.getWithMetadata(KEY, { type: "json" }));
+      const found = await steady(`read ${key}`, () => blobs.getWithMetadata(key, { type: "json" }));
       return found ? { data: found.data, etag: found.etag } : { data: null, etag: null };
     },
     async write(data, etag) {
       // Only save if nobody else saved in between; the core retries on a fresh copy.
-      const { modified } = await steady("save", () =>
-        blobs.setJSON(KEY, data, etag ? { onlyIfMatch: etag } : { onlyIfNew: true })
+      const { modified } = await steady(`save ${key}`, () =>
+        blobs.setJSON(key, data, etag ? { onlyIfMatch: etag } : { onlyIfNew: true })
       );
       return modified;
     },
   };
+}
+
+export default async (req, context) => {
+  const blobs = getStore({ name: "podcast-poll", consistency: "strong" });
+  const store = document(blobs, "polls.json");
 
   let body = null;
   if (req.method === "POST") {
@@ -48,13 +52,18 @@ export default async (req) => {
     }
   }
 
-  // Set POLL_TZ in Netlify's environment variables to change when a week "ends".
-  // POLL_PASSWORD (also a Netlify environment variable) is the password for submitting.
+  // Settings, all Netlify environment variables (see .env.example):
+  // POLL_TZ decides when a week "ends"; POLL_PASSWORD is the password for answers;
+  // TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY are the Cloudflare Turnstile widget's keys.
   const headers = { "cache-control": "no-store" };
   try {
     const { status, json } = await handle(store, req.method, body, {
       tz: process.env.POLL_TZ,
       password: process.env.POLL_PASSWORD,
+      siteKey: process.env.TURNSTILE_SITE_KEY,
+      verifyHuman: turnstileVerifier({ secret: process.env.TURNSTILE_SECRET_KEY }),
+      attempts: document(blobs, "attempts.json"),
+      client: (context && context.ip) || req.headers.get("x-nf-client-connection-ip") || "",
     });
     return Response.json(json, { status, headers });
   } catch (err) {

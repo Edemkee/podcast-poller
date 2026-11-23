@@ -16,3 +16,6 @@ States: `open`, `in progress`, `rejected`, `done`.
 | 10 | FEATURES.md and ARCHITECTURE.md | done | v0.4.1; owner asked for them 2026-11-23 |
 | 11 | Limit who can edit or remove other people's answers | done | v0.4.0: saving, changing and removing all need the shared password; anyone who has it can still change anyone's answer |
 | 12 | Password needed to submit an answer, field right of the name, masked with a Show button | done | v0.3.0; owner request 2026-11-23; password set in Netlify as `POLL_PASSWORD` |
+| 13 | Human check with Cloudflare Turnstile (free) on submitting, changing and removing answers | done | v0.5.0; owner request 2026-11-23; keys in Netlify as `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
+| 14 | Timeout after 3 wrong passwords | done | v0.5.0; owner request 2026-11-23; 15 minutes per connection (hashed IP) |
+| 15 | Human check on creating a poll too | open | idea from Claude, 2026-11-23; creating needs no password, so bots could create empty polls |

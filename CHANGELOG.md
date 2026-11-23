@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.5.0 - 2026-11-23
+
+Minor: a human check and a timeout for wrong passwords.
+
+### Added
+- Cloudflare Turnstile (free) checks that a human is submitting, changing or removing an answer. The widget stays invisible unless Cloudflare asks for a click. The server confirms every token with Cloudflare before it looks at the password.
+- 3 wrong passwords in a row from the same connection mean a 15-minute wait, even for the right password. The page says how many tries are left. Connections are recorded only as a hash of the IP address.
+- New settings `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` (Netlify environment variables; the secret key is secret).
+
+### Changed
+- A vote or removal is no longer retried automatically after a server error, because its human-check token works only once.
+
 ## v0.4.1 - 2026-11-23
 
 Patch: tests and documentation, no change to how the poll behaves.

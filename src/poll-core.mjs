@@ -44,6 +44,80 @@ function checkPassword(given, expected) {
   }
 }
 
+// ---------- the gate in front of saving and removing answers ----------
+// Every vote or removal passes three checks before anything is read or saved:
+//   1. the visitor is not timed out (MAX_TRIES wrong passwords in a row lock them out
+//      for LOCK_MINUTES; the count is kept per connection, under a hash of its IP address),
+//   2. Cloudflare Turnstile confirms a human (opts.verifyHuman, see src/turnstile.mjs),
+//   3. the password is right.
+// Only a wrong password counts towards the timeout. A right one clears the count.
+export const MAX_TRIES = 3;
+export const LOCK_MINUTES = 15;
+const FORGET_MINUTES = 60; // wrong passwords further apart than this do not add up
+
+const PROTECTED = new Set(["vote", "remove"]);
+const clientKey = (ip) => createHash("sha256").update("podcast-poll:" + (ip || "unknown")).digest("hex").slice(0, 24);
+const ms = (iso) => (iso ? Date.parse(iso) || 0 : 0);
+const minutes = (n) => `${n} ${n === 1 ? "minute" : "minutes"}`;
+const tries = (n) => `${n} ${n === 1 ? "try" : "tries"}`;
+
+// Read-change-save on the attempts document, retried if someone saved in between.
+async function updateAttempts(store, nowMs, change) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const { data, etag } = await store.read();
+    const doc = data && typeof data === "object" && data.clients && typeof data.clients === "object" ? data : { clients: {} };
+    change(doc.clients);
+    for (const [key, rec] of Object.entries(doc.clients)) {
+      // Tidy up: forget entries whose count has lapsed and whose timeout is over.
+      if (Math.max(ms(rec.last) + FORGET_MINUTES * 60000, ms(rec.until)) < nowMs) delete doc.clients[key];
+    }
+    if (await store.write(doc, etag)) return;
+  }
+}
+
+async function gate(body, opts, nowMs) {
+  const attempts = opts.attempts;
+  if (!attempts) throw new Error("poll-core: opts.attempts store is required for votes and removals");
+  const key = clientKey(opts.client);
+
+  // 1. Timed out?
+  const { data } = await attempts.read();
+  const rec = data && data.clients && data.clients[key];
+  if (rec && ms(rec.until) > nowMs) {
+    const left = Math.max(1, Math.ceil((ms(rec.until) - nowMs) / 60000));
+    throw new Refusal(429, `Too many wrong passwords. Try again in ${minutes(left)}.`);
+  }
+
+  // 2. Human?
+  const human = opts.verifyHuman ? await opts.verifyHuman(body.human, opts.client) : { ok: false, reason: "not-configured" };
+  if (!human.ok) {
+    if (human.reason === "not-configured") throw new Refusal(403, "Answers are switched off: the human check has not been set up yet.");
+    if (human.reason === "unreachable") throw new Refusal(503, "Could not reach the human check. Try again in a moment.");
+    throw new Refusal(403, "Could not confirm you are human. Wait for the check above the Submit button, then try again.");
+  }
+
+  // 3. Password?
+  try {
+    checkPassword(body.password, opts.password);
+  } catch (err) {
+    if (!(err instanceof Refusal) || /not been set up/.test(err.message)) throw err;
+    let fails = 0;
+    await updateAttempts(attempts, nowMs, (clients) => {
+      const prev = clients[key];
+      // Start counting again after a finished timeout or a long quiet spell.
+      const lapsed = !prev || ms(prev.until) || ms(prev.last) + FORGET_MINUTES * 60000 < nowMs;
+      fails = (lapsed ? 0 : prev.fails || 0) + 1;
+      clients[key] = { fails, last: new Date(nowMs).toISOString() };
+      if (fails >= MAX_TRIES) clients[key].until = new Date(nowMs + LOCK_MINUTES * 60000).toISOString();
+    });
+    if (fails >= MAX_TRIES) {
+      throw new Refusal(429, `Wrong password, ${MAX_TRIES} times in a row. Try again in ${minutes(LOCK_MINUTES)}.`);
+    }
+    throw new Refusal(403, `${err.message} ${tries(MAX_TRIES - fails)} left before a ${LOCK_MINUTES}-minute wait.`);
+  }
+  if (rec && rec.fails) await updateAttempts(attempts, nowMs, (clients) => delete clients[key]);
+}
+
 function normalise(raw) {
   return raw && typeof raw === "object" && raw.polls && typeof raw.polls === "object"
     ? raw
@@ -82,7 +156,7 @@ function cleanSlots(slots, weekStart) {
   return out;
 }
 
-function apply(data, body, today, newId, password) {
+function apply(data, body, today, newId) {
   if (!body || typeof body !== "object") throw new Refusal(400, "Nothing was sent.");
   const thisWeek = mondayOf(today);
 
@@ -100,7 +174,6 @@ function apply(data, body, today, newId, password) {
   if (!poll) throw new Refusal(404, "That poll no longer exists. Reload the page.");
 
   if (body.action === "vote") {
-    checkPassword(body.password, password);
     const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
     if (!name) throw new Refusal(400, "Add a name first.");
     if (name.length > 40) throw new Refusal(400, "Keep the name under 40 characters.");
@@ -127,7 +200,6 @@ function apply(data, body, today, newId, password) {
   }
 
   if (body.action === "remove") {
-    checkPassword(body.password, password);
     delete poll.responses[body.id];
     return {};
   }
@@ -146,6 +218,15 @@ export async function handle(store, method, body, opts = {}) {
   const today = todayIn(opts.tz || DEFAULT_TZ, opts.now);
   const newId = opts.newId || (() => crypto.randomUUID());
 
+  if (method === "POST" && body && typeof body === "object" && PROTECTED.has(body.action)) {
+    try {
+      await gate(body, opts, (opts.now || new Date()).getTime());
+    } catch (err) {
+      if (err instanceof Refusal) return { status: err.status, json: { error: err.message } };
+      throw err;
+    }
+  }
+
   for (let attempt = 0; attempt < 6; attempt++) {
     const { data: raw, etag } = await store.read();
     const data = normalise(raw);
@@ -154,7 +235,7 @@ export async function handle(store, method, body, opts = {}) {
 
     if (method === "POST") {
       try {
-        extra = apply(data, body, today, newId, opts.password);
+        extra = apply(data, body, today, newId);
         changed = true;
       } catch (err) {
         if (err instanceof Refusal) return { status: err.status, json: { error: err.message } };
@@ -170,6 +251,7 @@ export async function handle(store, method, body, opts = {}) {
           today,
           weeks: { this: thisWeek, next: addDays(thisWeek, 7) },
           polls: data.polls,
+          siteKey: opts.siteKey || null, // Cloudflare Turnstile's public site key for the page
           ...extra,
         },
       };

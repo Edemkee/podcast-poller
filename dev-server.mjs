@@ -6,25 +6,35 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname, extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { handle } from "./src/poll-core.mjs";
+import { turnstileVerifier, SITEVERIFY } from "./src/turnstile.mjs";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const dataFile = process.env.DATA_FILE || join(root, "data", "polls.json");
 const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml" };
 
-const store = {
+// A JSON file standing in for a Netlify Blobs document.
+const fileStore = (file) => ({
   async read() {
     try {
-      return { data: JSON.parse(await readFile(dataFile, "utf8")), etag: null };
+      return { data: JSON.parse(await readFile(file, "utf8")), etag: null };
     } catch {
       return { data: null, etag: null };
     }
   },
   async write(data) {
-    await mkdir(dirname(dataFile), { recursive: true });
-    await writeFile(dataFile, JSON.stringify(data, null, 2));
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, JSON.stringify(data, null, 2));
     return true;
   },
-};
+});
+const store = fileStore(dataFile);
+const attempts = fileStore(join(dirname(dataFile), "attempts.json"));
+// Locally, use Cloudflare's test keys (see README). TURNSTILE_VERIFY_URL is only for the
+// browser test's stand-in when Cloudflare cannot be reached.
+const verifyHuman = turnstileVerifier({
+  secret: process.env.TURNSTILE_SECRET_KEY,
+  url: process.env.TURNSTILE_VERIFY_URL || SITEVERIFY,
+});
 
 http
   .createServer(async (req, res) => {
@@ -40,6 +50,10 @@ http
       const { status, json } = await handle(store, req.method, body, {
         tz: process.env.POLL_TZ,
         password: process.env.POLL_PASSWORD,
+        siteKey: process.env.TURNSTILE_SITE_KEY,
+        verifyHuman,
+        attempts,
+        client: req.socket.remoteAddress,
         now,
       });
       res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" });
