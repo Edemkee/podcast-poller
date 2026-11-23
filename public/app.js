@@ -113,7 +113,7 @@
   }
 
   // ---------- the human check (Cloudflare Turnstile) ----------
-  // Every vote or removal carries a fresh token from the widget; the server confirms it
+  // Creating a poll and every vote or removal carry a fresh token from the widget; the server confirms it
   // with Cloudflare. A token works once, so the widget is reset after each request.
   const human = { id: null, token: "", waiters: [] };
 
@@ -140,7 +140,7 @@
       const done = (token) => { clearTimeout(timer); resolve(token); };
       const timer = setTimeout(() => {
         human.waiters = human.waiters.filter((w) => w !== done);
-        reject(new Error("The human check is not finished. If a box appeared above the Submit button, tick it; otherwise reload the page."));
+        reject(new Error("The human check is not finished. If a box appeared under the button, tick it; otherwise reload the page."));
       }, 15000);
       human.waiters.push(done);
     });
@@ -151,12 +151,12 @@
     if (human.id !== null && window.turnstile) window.turnstile.reset(human.id);
   }
 
-  // Votes and removals: wait for the human check, send, then get a fresh token for next time.
+  // Creating, voting and removing: wait for the human check, send, then get a fresh token.
   async function protectedAct(body, after) {
     if (busy) return;
     busy = true;
     note = { text: "Checking that you are human…", bad: false };
-    renderBar();
+    render();
     let token;
     try {
       token = await humanToken();
@@ -176,7 +176,7 @@
     const unreachable = "Could not reach the poll. Check your connection and try again.";
     let failure = unreachable;
     // A server hiccup (5xx) or dropped connection is retried quietly; every action is safe to
-    // repeat. Not a vote or removal, though: its human-check token works only once.
+    // repeat. Not one that carries a human-check token, though: a token works only once.
     const tries = body && body.human !== undefined ? 1 : 3;
     for (let attempt = 0; attempt < tries; attempt++) {
       if (attempt) await new Promise((r) => setTimeout(r, 700 * attempt));
@@ -265,7 +265,9 @@
       box.replaceChildren(
         h("h1", {}, `No poll for ${which === "this" ? "this" : "next"} week yet`),
         h("p", {}, `Create one and everyone with this link can mark the evenings they can record, Monday to Sunday, ${range}.`),
-        h("button", { type: "button", class: "btn primary", disabled: busy, onclick: () => act({ action: "create", week: which }, loadForm) }, `Create poll for ${range}`)
+        h("button", { type: "button", class: "btn primary", disabled: busy, onclick: () => protectedAct({ action: "create", week: which }, loadForm) }, busy ? "Creating…" : `Create poll for ${range}`),
+        // The answer form (and its message line) is hidden until a poll exists, so say it here.
+        note.text ? h("p", { class: "note" + (note.bad ? " bad" : ""), role: "status" }, note.text) : null
       );
       return;
     }
@@ -395,7 +397,6 @@
     const bar = $("answer");
     bar.hidden = !poll();
     if (bar.hidden) return;
-    setupHuman();
     const done = mode === "done";
     bar.classList.toggle("done", done);
     const p = poll();
@@ -418,6 +419,7 @@
   }
 
   function render() {
+    setupHuman();
     const t = tally();
     renderWeeks();
     renderVerdict(t);

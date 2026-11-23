@@ -44,8 +44,9 @@ function checkPassword(given, expected) {
   }
 }
 
-// ---------- the gate in front of saving and removing answers ----------
-// Every vote or removal passes three checks before anything is read or saved:
+// ---------- the gate in front of creating polls and saving or removing answers ----------
+// Creating a poll needs only the human check (2). Every vote or removal passes all three
+// checks before anything is read or saved:
 //   1. the visitor is not timed out (MAX_TRIES wrong passwords in a row lock them out
 //      for LOCK_MINUTES; the count is kept per connection, under a hash of its IP address),
 //   2. Cloudflare Turnstile confirms a human (opts.verifyHuman, see src/turnstile.mjs),
@@ -55,7 +56,8 @@ export const MAX_TRIES = 3;
 export const LOCK_MINUTES = 15;
 const FORGET_MINUTES = 60; // wrong passwords further apart than this do not add up
 
-const PROTECTED = new Set(["vote", "remove"]);
+const PROTECTED = new Set(["create", "vote", "remove"]);
+const NEEDS_PASSWORD = new Set(["vote", "remove"]);
 const clientKey = (ip) => createHash("sha256").update("podcast-poll:" + (ip || "unknown")).digest("hex").slice(0, 24);
 const ms = (iso) => (iso ? Date.parse(iso) || 0 : 0);
 const minutes = (n) => `${n} ${n === 1 ? "minute" : "minutes"}`;
@@ -75,7 +77,19 @@ async function updateAttempts(store, nowMs, change) {
   }
 }
 
+// The human check alone (creating a poll), or with the timeout and password (answers).
+async function checkHuman(body, opts) {
+  const human = opts.verifyHuman ? await opts.verifyHuman(body.human, opts.client) : { ok: false, reason: "not-configured" };
+  if (!human.ok) {
+    const what = body.action === "create" ? "Polls" : "Answers";
+    if (human.reason === "not-configured") throw new Refusal(403, `${what} are switched off: the human check has not been set up yet.`);
+    if (human.reason === "unreachable") throw new Refusal(503, "Could not reach the human check. Try again in a moment.");
+    throw new Refusal(403, "Could not confirm you are human. Wait for the human check under the button to finish, then try again.");
+  }
+}
+
 async function gate(body, opts, nowMs) {
+  if (!NEEDS_PASSWORD.has(body.action)) return checkHuman(body, opts);
   const attempts = opts.attempts;
   if (!attempts) throw new Error("poll-core: opts.attempts store is required for votes and removals");
   const key = clientKey(opts.client);
@@ -89,12 +103,7 @@ async function gate(body, opts, nowMs) {
   }
 
   // 2. Human?
-  const human = opts.verifyHuman ? await opts.verifyHuman(body.human, opts.client) : { ok: false, reason: "not-configured" };
-  if (!human.ok) {
-    if (human.reason === "not-configured") throw new Refusal(403, "Answers are switched off: the human check has not been set up yet.");
-    if (human.reason === "unreachable") throw new Refusal(503, "Could not reach the human check. Try again in a moment.");
-    throw new Refusal(403, "Could not confirm you are human. Wait for the check above the Submit button, then try again.");
-  }
+  await checkHuman(body, opts);
 
   // 3. Password?
   try {

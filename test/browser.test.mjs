@@ -195,7 +195,7 @@ try {
     }
   }
 
-  // A human check that fails: nothing is saved, and the page says why.
+  // A human check that fails: no poll is created, and the page says why.
   {
     const { child, url } = await startServer(port++, "not-human", FAIL_SECRET);
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -205,12 +205,12 @@ try {
     try {
       await page.goto(url);
       await page.getByRole("button", { name: /Create poll for 9–15 Nov/ }).click();
-      await page.locator("#name").fill("Robot");
-      await page.locator("#password").fill(PW);
-      await page.locator("#submit").click();
-      await page.getByText("Could not confirm you are human.").waitFor();
-      assert.equal(await page.locator(".people > ul > li").count(), 0);
-      ok("[desktop] a failed human check saves nothing and says why");
+      await page.locator("#verdict").getByText("Could not confirm you are human.").waitFor();
+      assert.equal(await page.locator("#answer").isHidden(), true, "no poll, so no answer form");
+      assert.match(await page.locator("#verdict h1").innerText(), /No poll for this week yet/);
+      const polls = await page.evaluate(() => fetch("/api/poll").then((r) => r.json()).then((j) => Object.keys(j.polls)));
+      assert.deepEqual(polls, []);
+      ok("[desktop] a failed human check creates no poll and says why under the button");
     } finally {
       await context.close();
       child.kill();

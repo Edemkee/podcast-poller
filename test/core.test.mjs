@@ -46,10 +46,18 @@ assert.deepEqual(r.json.polls, {});
 assert.equal(s.peek(), null);
 ok("empty state, nothing written on a plain read");
 
-r = await handle(s, "POST", { action: "create", week: "this" }, tue);
-r = await handle(s, "POST", { action: "create", week: "next" }, tue);
+for (const token of [undefined, "", "made-up-token"]) {
+  r = await handle(s, "POST", { action: "create", week: "this", human: token }, tue);
+  assert.equal(r.status, 403);
+  assert.match(r.json.error, /human/);
+}
+r = await handle(s, "POST", { action: "create", week: "this", human: HUMAN }, { ...tue, verifyHuman: undefined });
+assert.match(r.json.error, /^Polls are switched off/);
+assert.equal(s.peek(), null, "no poll created without the human check");
+r = await handle(s, "POST", { action: "create", week: "this", human: HUMAN }, tue);
+r = await handle(s, "POST", { action: "create", week: "next", human: HUMAN }, tue);
 assert.deepEqual(Object.keys(r.json.polls).sort(), ["2026-11-09", "2026-11-16"]);
-ok("create this week and next week");
+ok("creating a poll needs the human check (no password); then this week and next week");
 
 r = await handle(s, "POST", { action: "vote", password: PW, human: HUMAN, weekStart: "2026-11-09", name: "  Edem ",
   slots: { "2026-11-12": ["20:00", "19:00", "20:00"], "2026-11-13": ["21:30"], "2026-11-14": [] } }, tue);
@@ -80,7 +88,7 @@ for (const [bad, why] of [
   [{ action: "vote", password: PW, human: HUMAN, weekStart: "2026-11-09", name: "X", slots: { "2026-11-12": ["25:00"] } }, "bad time"],
   [{ action: "vote", password: PW, human: HUMAN, weekStart: "2026-11-09", name: "X", slots: { "2026-11-12": "19:00" } }, "times not a list"],
   [{ action: "vote", password: PW, human: HUMAN, weekStart: "2026-11-09", name: "X".repeat(41), slots: {} }, "long name"],
-  [{ action: "create", week: "2027" }, "bad week"],
+  [{ action: "create", human: HUMAN, week: "2027" }, "bad week"],
   [{ action: "nope", weekStart: "2026-11-09" }, "unknown action"],
   [null, "no body"],
 ]) {

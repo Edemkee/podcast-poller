@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.6.0 - 2026-11-23
+
+Minor: creating a poll needs the human check too.
+
+### Changed
+- "Create poll" goes through Cloudflare Turnstile's human check, like answers do (no password needed). Without it, no poll is created.
+- The human-check widget now sits under the active button: under "Create poll" when there is no poll yet, and under the answer form's buttons otherwise.
+
+### Fixed
+- A refused "Create poll" now shows its message under the button. Before, the message went to the hidden answer form.
+
 ## v0.5.0 - 2026-11-23
 
 Minor: a human check and a timeout for wrong passwords.

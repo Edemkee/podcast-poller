@@ -18,4 +18,4 @@ States: `open`, `in progress`, `rejected`, `done`.
 | 12 | Password needed to submit an answer, field right of the name, masked with a Show button | done | v0.3.0; owner request 2026-11-23; password set in Netlify as `POLL_PASSWORD` |
 | 13 | Human check with Cloudflare Turnstile (free) on submitting, changing and removing answers | done | v0.5.0; owner request 2026-11-23; keys in Netlify as `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
 | 14 | Timeout after 3 wrong passwords | done | v0.5.0; owner request 2026-11-23; 15 minutes per connection (hashed IP) |
-| 15 | Human check on creating a poll too | open | idea from Claude, 2026-11-23; creating needs no password, so bots could create empty polls |
+| 15 | Human check on creating a poll too | done | v0.6.0; owner agreed 2026-11-23; no password needed for creating |
