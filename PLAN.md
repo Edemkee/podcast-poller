@@ -14,4 +14,5 @@ States: `open`, `in progress`, `rejected`, `done`.
 | 8 | Keep the browser walkthrough (phone, tablet, desktop) in the repository as an automated test | open | idea from Claude, 2026-11-12; today only the poll rules have tests |
 | 9 | CI: run the tests on every pull request | open | optional for a small project; offered 2026-11-12 |
 | 10 | FEATURES.md and ARCHITECTURE.md | open | optional for a small project; revisit if the project grows |
-| 11 | Limit who can edit or remove other people's answers | open | the owner allowed it "for now" on 2026-11-10 |
+| 11 | Limit who can edit or remove other people's answers | open | the owner allowed it "for now" on 2026-11-10; since v0.3.0 saving an edit needs the password, removing does not |
+| 12 | Password needed to submit an answer, field right of the name, masked with a Show button | done | v0.3.0; owner request 2026-11-23; password set in Netlify as `POLL_PASSWORD` |

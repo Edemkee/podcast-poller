@@ -347,6 +347,8 @@
     $("barNote").classList.toggle("bad", note.bad);
     if (done && current) $("name").value = current.name;
     $("name").disabled = busy || done;
+    $("password").disabled = busy || done;
+    $("reveal").disabled = busy || done;
     $("submit").disabled = busy;
     $("submit").textContent = busy ? "Saving…" : done ? "Change my answer" : current ? "Save changes" : "Submit my answer";
     $("cancel").hidden = done || !current;
@@ -395,6 +397,15 @@
     render();
   });
 
+  // The password is masked until "Show" is pressed. It is never stored in the browser.
+  $("reveal").addEventListener("click", () => {
+    const show = $("password").type === "password";
+    $("password").type = show ? "text" : "password";
+    $("reveal").textContent = show ? "Hide" : "Show";
+    $("reveal").setAttribute("aria-pressed", String(show));
+    $("reveal").setAttribute("aria-label", show ? "Hide password" : "Show password");
+  });
+
   $("name").addEventListener("input", (e) => {
     if (!editingOther) cache.set("name", e.target.value.trim());
   });
@@ -414,9 +425,16 @@
       $("name").focus();
       return;
     }
+    const password = $("password").value;
+    if (!password) {
+      note = { text: "Enter the password to submit your answer.", bad: true };
+      renderBar();
+      $("password").focus();
+      return;
+    }
     const forOther = editingOther;
     const week = weekStart();
-    act({ action: "vote", weekStart: week, id: editingId, name, slots: slotsFromDraft() }, (json) => {
+    act({ action: "vote", weekStart: week, id: editingId, name, password, slots: slotsFromDraft() }, (json) => {
       if (!forOther) {
         cache.set("name", name);
         cache.set("mine", { ...cache.get("mine", {}), [week]: json.id });
@@ -424,6 +442,9 @@
       $("name").value = cache.get("name", "");
       loadForm();
       if (forOther) note = { text: `Saved ${name}'s answer.`, bad: false };
+    }).then(() => {
+      // A refused password leaves the answer open; put the cursor back in the password box.
+      if (note.bad && /password/i.test(note.text)) $("password").select();
     });
   });
 

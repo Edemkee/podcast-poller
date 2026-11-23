@@ -6,6 +6,11 @@ dev-workflow skill; read `PLAN.md` and `CHANGELOG.md` alongside this file.
 
 Newest decisions first. Each entry: date, decision, reason.
 
+## 2026-11-23
+
+- **Submitting an answer needs a shared password,** typed in a box to the right of the name box, masked by default with a Show/Hide button. The server checks it (`checkPassword` in `src/poll-core.mjs`) for every saved answer, new or edited; creating a poll and removing an answer do not need it. Reason: owner request.
+- **The password is never in the repository,** not in code, tests, docs, commits or pull requests. It lives only in the Netlify environment variable `POLL_PASSWORD`; tests use a made-up one. If `POLL_PASSWORD` is not set, every answer is refused, so set it before deploying. The browser does not store it. Reason: owner request; anything in the repo is public.
+
 ## 2026-11-12
 
 - **The live site is https://podcast-poller.netlify.app/.** Use it to check a change after the owner merges and Netlify deploys; the footer shows which version is live. Reason: the address was not written down and a session had to ask for it.
@@ -15,7 +20,7 @@ Newest decisions first. Each entry: date, decision, reason.
 - **The version lives in four places that must agree:** `VERSION`, `package.json`, the footer in `public/index.html`, and the newest `CHANGELOG.md` heading (`## vX.Y.Z - YYYY-MM-DD`). Reason: Netlify serves static files, so the footer cannot read VERSION at run time.
 - **Every change goes through a pull request against `main`** from a short-lived branch (`feature/…`, `fix/…`, `chore/…`). The owner merges unless they ask Claude to. Reason: dev workflow.
 - **Merging to `main` publishes the site and tags the version.** Netlify deploys `main`; the "Tag version" workflow (`.github/workflows/tag-version.yml`, `scripts/tag-version.mjs`) creates the annotated tag `vX.Y.Z` with the changelog entry as its message. Reason: Claude sessions cannot push tags or create releases on this repository, so do not replace the workflow with a manual step. Check the tag appeared after a merge.
-- **No secrets in the repository.** The only setting is `POLL_TZ`, which is not secret and is documented in `.env.example`. Review the staged diff before every commit. Reason: dev workflow.
+- **No secrets in the repository.** Settings are documented in `.env.example` with placeholders only: `POLL_TZ` (not secret) and, since 2026-11-23, `POLL_PASSWORD` (secret, set only in Netlify). Review the staged diff before every commit. Reason: dev workflow.
 
 ## 2026-11-10
 

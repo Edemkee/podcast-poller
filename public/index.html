@@ -21,10 +21,19 @@
     <section class="verdict" id="verdict" aria-live="polite"></section>
 
     <form class="answer" id="answer" novalidate hidden>
-      <label class="name">
-        <span>Your name</span>
-        <input id="name" type="text" maxlength="40" autocomplete="given-name">
-      </label>
+      <div class="identity">
+        <label class="field name">
+          <span>Your name</span>
+          <input id="name" type="text" maxlength="40" autocomplete="given-name">
+        </label>
+        <div class="field pass">
+          <label for="password">Password</label>
+          <div class="pass-box">
+            <input id="password" type="password" autocomplete="current-password" spellcheck="false" autocapitalize="off">
+            <button type="button" class="reveal" id="reveal" aria-controls="password" aria-pressed="false" aria-label="Show password">Show</button>
+          </div>
+        </div>
+      </div>
       <section class="week" id="week" aria-label="Days of the week"></section>
       <div class="send">
         <button type="submit" class="btn primary" id="submit">Submit my answer</button>
@@ -39,7 +48,7 @@
     </div>
   </main>
 
-  <footer class="foot">Version 0.2.2</footer>
+  <footer class="foot">Version 0.3.0</footer>
 
   <script src="app.js"></script>
 </body>
