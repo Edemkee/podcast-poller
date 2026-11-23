@@ -29,7 +29,7 @@ jobs:
 
       - name: Front-end and scripts parse
         run: |
-          for f in public/app.js src/*.mjs netlify/functions/*.mjs scripts/*.mjs dev-server.mjs; do
+          for f in public/app.js src/*.mjs netlify/functions/*.mjs scripts/*.mjs test/*.mjs dev-server.mjs; do
             node --check "$f"
           done
 
@@ -39,3 +39,30 @@ jobs:
       - name: Pull request raises the version
         if: github.event_name == 'pull_request'
         run: node scripts/check-version.mjs --unreleased
+
+  browser:
+    # The browser walkthrough (test/browser.test.mjs): phone, tablet and desktop.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+
+      - name: Browser walkthrough
+        run: node test/browser.test.mjs
+
+      - name: Keep screenshots of a failed walkthrough
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-screenshots
+          path: /tmp/poll-browser-*.png
+          if-no-files-found: ignore

@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.4.1 - 2026-11-23
+
+Patch: tests and documentation, no change to how the poll behaves.
+
+### Added
+- Browser walkthrough test (`npm run test:browser`): the whole page on a phone, a tablet and a desktop, in light and dark mode. CI runs it on every pull request.
+- FEATURES.md (features, settings and test coverage) and ARCHITECTURE.md (components, endpoint, data, diagram).
+- The local server can keep its data elsewhere with `DATA_FILE`.
+
 ## v0.4.0 - 2026-11-23
 
 Minor: changing or removing an answer also needs the password; tests run on every pull request.
