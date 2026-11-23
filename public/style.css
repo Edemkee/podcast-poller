@@ -146,6 +146,9 @@ main { flex: 1; padding-bottom: 28px; }
 .send { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 14px; }
 .send .note { margin: 0 0 0 4px; flex: 1 1 220px; font-size: 0.95rem; }
 .send .note:empty { display: none; }
+/* Cloudflare's human check. Invisible unless Cloudflare asks for a click. */
+.human { flex: 1 1 100%; }
+.human:empty { display: none; }
 .send .note.bad { color: var(--signal); font-weight: 700; }
 
 /* ---------- the week ---------- */

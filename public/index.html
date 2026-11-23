@@ -36,6 +36,7 @@
       </div>
       <section class="week" id="week" aria-label="Days of the week"></section>
       <div class="send">
+        <div class="human" id="human" aria-label="Human check"></div>
         <button type="submit" class="btn primary" id="submit">Submit my answer</button>
         <button type="button" class="btn quiet" id="cancel" hidden>Cancel</button>
         <p class="note" id="barNote" role="status"></p>
@@ -48,8 +49,10 @@
     </div>
   </main>
 
-  <footer class="foot">Version 0.4.1</footer>
+  <footer class="foot">Version 0.5.0</footer>
 
   <script src="app.js"></script>
+  <!-- Cloudflare Turnstile, the human check. Loaded after app.js, which defines onTurnstileLoad. -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad" async defer></script>
 </body>
 </html>

@@ -25,13 +25,30 @@ Tests:
   - v0.2: one option per line; the submit control under the week table.
 
 ## Feature: Shared password (major)
-- Description: saving an answer (new or changed) and removing one need the shared password. It is checked on the server with a constant-time comparison; a missing or wrong one changes nothing and the page says so. The password box sits right of the name box, masked by default, with a Show/Hide button. It is never stored in the browser or in the repository.
+- Description: saving an answer (new or changed) and removing one need the shared password. It is checked on the server with a constant-time comparison, after the timeout and human checks; a missing or wrong one changes nothing and the page says so, with the tries left before a timeout. The password box sits right of the name box, masked by default, with a Show/Hide button. It is never stored in the browser or in the repository.
 - Related minor features: the Show/Hide button (`#reveal`); the cursor returns to the password box when the password is missing or refused; the box stays usable after submitting so Remove can use it.
 - Config: `POLL_PASSWORD`, required and secret, set only in Netlify's environment variables. If unset, every answer and removal is refused. Changing it needs a redeploy.
 - Tests: core: no, empty, wrong, wrong-case and non-string passwords refused for saving; no password configured refuses everything; nothing saved on refusal; the password never sent back; removal refused without or with a wrong password. browser: masked by default, Show/Hide, placement on all three sizes, submit and remove with no, wrong and right password. Not covered: brute-force limits (there are none).
 - Changes:
   - v0.3.0: needed to submit an answer.
   - v0.4.0: also needed to remove one; the box stays usable after submitting.
+  - v0.5.0: checked only after the timeout and the human check; refusals say how many tries are left.
+
+## Feature: Human check (major)
+- Description: Cloudflare Turnstile (free plan) confirms that a human is saving or removing an answer. The widget sits above the Submit button and stays invisible unless Cloudflare asks for a click. Each vote or removal carries a fresh token; the server confirms it with Cloudflare's siteverify before it looks at the password, and fails closed (no secret key, no token, Cloudflare unreachable, rejected token).
+- Related minor features: "Checking that you are human…" while the token arrives; a 15-second wait for the token, then a message; the widget is reset after every request; votes and removals are not retried automatically (a token works once).
+- Config: `TURNSTILE_SITE_KEY` (public, served to the page by GET `/api/poll`) and `TURNSTILE_SECRET_KEY` (secret, only in Netlify). Locally and in tests, Cloudflare's dummy keys. `TURNSTILE_VERIFY_URL` (dev server only) points the check at the browser test's stand-in.
+- Tests: core: missing, empty and rejected tokens refused for votes and removals; a bot never reaches the password check and does not count towards the timeout; not configured refuses; Cloudflare unreachable gives 503; nothing saved; the verifier's request to Cloudflare (secret, token, IP), its answers, and no call without a usable token. browser: every save and removal goes through the widget (Cloudflare's test keys in CI, a stand-in with `TURNSTILE_STUB=1`); a failing secret key saves nothing and says why. Not covered: a real interactive challenge.
+- Changes:
+  - v0.5.0: first release.
+
+## Feature: Timeout after wrong passwords (major)
+- Description: 3 wrong passwords in a row from one connection mean a 15-minute wait for votes and removals, even with the right password. A right password clears the count; wrong passwords more than an hour apart do not add up; failed human checks do not count. Each connection is one client IP address, stored only as a hash.
+- Related minor features: "N tries left before a 15-minute wait" on a wrong password; "Try again in N minutes" while timed out; old entries are tidied away.
+- Config: `MAX_TRIES` (3), `LOCK_MINUTES` (15) and `FORGET_MINUTES` (60) in `src/poll-core.mjs`. Counts live in `attempts.json` in the Blobs store `podcast-poll` (locally `data/attempts.json`).
+- Tests: core: tries-left messages, the timeout on the third wrong password, the right password refused while timed out, removals refused too, another connection unaffected, no plain IP stored, the timeout ending, a right password or an hour's quiet resetting the count. browser: three wrong passwords, then the right one refused with the wait message. Not covered: many connections at once (a spread-out attack is left to the human check).
+- Changes:
+  - v0.5.0: first release.
 
 ## Feature: Results (major)
 - Description: once one answer exists, everyone sees a ranked list of evenings, most votes first, with the leading count highlighted and labelled ("Leading" or "Tied for the lead"). The headline names up to three leading evenings.
@@ -42,7 +59,7 @@ Tests:
   - v0.2: ranked results list for every visitor.
 
 ## Feature: Storage (major)
-- Description: all data is one rolling JSON document, `polls.json`, in the Netlify Blobs store `podcast-poll`. A week is deleted once its Sunday has passed; next week's poll becomes this week's on Monday. Saves are conditional (etag) and retried on a clash; each storage call is retried three times, and the page retries a failed request.
+- Description: all poll data is one rolling JSON document, `polls.json`, in the Netlify Blobs store `podcast-poll` (wrong-password counts are a second document, `attempts.json`). A week is deleted once its Sunday has passed; next week's poll becomes this week's on Monday. Saves are conditional (etag) and retried on a clash; each storage call is retried three times, and the page retries a failed request.
 - Related minor features: the "storage did not answer" message (503); the "someone else saved at the same moment" message (409).
 - Config: store name and key are constants in `netlify/functions/poll.mjs`. Locally, `dev-server.mjs` writes `data/polls.json` (or `DATA_FILE`).
 - Tests: core: nothing written on a plain read, clashing saves retried then given up, past weeks purged on Monday in Budapest time. Not covered: the Netlify Blobs wrapper and its retries (needs Netlify).

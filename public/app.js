@@ -112,12 +112,73 @@
     }
   }
 
+  // ---------- the human check (Cloudflare Turnstile) ----------
+  // Every vote or removal carries a fresh token from the widget; the server confirms it
+  // with Cloudflare. A token works once, so the widget is reset after each request.
+  const human = { id: null, token: "", waiters: [] };
+
+  function setupHuman() {
+    if (human.id !== null || !server || !server.siteKey || !window.turnstile) return;
+    human.id = window.turnstile.render("#human", {
+      sitekey: server.siteKey,
+      appearance: "interaction-only", // shows a box only if Cloudflare wants a click
+      theme: "auto",
+      callback: (token) => {
+        human.token = token;
+        human.waiters.splice(0).forEach((done) => done(token));
+      },
+      "expired-callback": () => { human.token = ""; },
+      "error-callback": () => { human.token = ""; },
+    });
+  }
+  window.onTurnstileLoad = setupHuman;
+
+  function humanToken() {
+    if (human.token) return Promise.resolve(human.token);
+    if (server && !server.siteKey) return Promise.resolve(""); // not set up: the server says so
+    return new Promise((resolve, reject) => {
+      const done = (token) => { clearTimeout(timer); resolve(token); };
+      const timer = setTimeout(() => {
+        human.waiters = human.waiters.filter((w) => w !== done);
+        reject(new Error("The human check is not finished. If a box appeared above the Submit button, tick it; otherwise reload the page."));
+      }, 15000);
+      human.waiters.push(done);
+    });
+  }
+
+  function resetHuman() {
+    human.token = "";
+    if (human.id !== null && window.turnstile) window.turnstile.reset(human.id);
+  }
+
+  // Votes and removals: wait for the human check, send, then get a fresh token for next time.
+  async function protectedAct(body, after) {
+    if (busy) return;
+    busy = true;
+    note = { text: "Checking that you are human…", bad: false };
+    renderBar();
+    let token;
+    try {
+      token = await humanToken();
+    } catch (err) {
+      busy = false;
+      note = { text: err.message, bad: true };
+      render();
+      return;
+    }
+    busy = false;
+    await act({ ...body, human: token }, after);
+    resetHuman();
+  }
+
   // ---------- talking to the server ----------
   async function call(body) {
     const unreachable = "Could not reach the poll. Check your connection and try again.";
     let failure = unreachable;
-    // A server hiccup (5xx) or dropped connection is retried quietly; every action is safe to repeat.
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // A server hiccup (5xx) or dropped connection is retried quietly; every action is safe to
+    // repeat. Not a vote or removal, though: its human-check token works only once.
+    const tries = body && body.human !== undefined ? 1 : 3;
+    for (let attempt = 0; attempt < tries; attempt++) {
       if (attempt) await new Promise((r) => setTimeout(r, 700 * attempt));
       let res, json = null;
       try {
@@ -334,6 +395,7 @@
     const bar = $("answer");
     bar.hidden = !poll();
     if (bar.hidden) return;
+    setupHuman();
     const done = mode === "done";
     bar.classList.toggle("done", done);
     const p = poll();
@@ -392,7 +454,7 @@
     if (!password) return askForPassword(`Enter the password to remove ${r.name}'s answer.`);
     if (!confirm(`Remove ${r.name}'s answer?`)) return;
     const wasMine = r.id === mineId();
-    act({ action: "remove", weekStart: weekStart(), id: r.id, password }, () => {
+    protectedAct({ action: "remove", weekStart: weekStart(), id: r.id, password }, () => {
       if (wasMine) {
         const mine = cache.get("mine", {});
         delete mine[weekStart()];
@@ -444,7 +506,7 @@
     if (!password) return askForPassword("Enter the password to submit your answer.");
     const forOther = editingOther;
     const week = weekStart();
-    act({ action: "vote", weekStart: week, id: editingId, name, password, slots: slotsFromDraft() }, (json) => {
+    protectedAct({ action: "vote", weekStart: week, id: editingId, name, password, slots: slotsFromDraft() }, (json) => {
       if (!forOther) {
         cache.set("name", name);
         cache.set("mine", { ...cache.get("mine", {}), [week]: json.id });
