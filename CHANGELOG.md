@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.0 - 2026-11-23
+
+Minor: changing or removing an answer also needs the password; tests run on every pull request.
+
+### Changed
+- Removing an answer needs the shared password, like submitting and changing one. The password box stays usable after you submit, so you can remove an answer without reopening yours.
+
+### Added
+- CI: every pull request and every push to `main` runs the poll-rule tests, checks that the scripts parse, and checks the version rule (VERSION, package.json, footer and changelog agree; a pull request must raise the version).
+- `scripts/check-version.mjs`, also used by the tagging script.
+
 ## v0.3.0 - 2026-11-23
 
 Minor: submitting an answer now needs the shared password.

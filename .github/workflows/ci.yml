@@ -1,0 +1,41 @@
+name: CI
+
+# Runs on every pull request and on every push to main, so a pull request shows
+# whether the tests pass before it is merged.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # brings the tags, so the version check can see what is released
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Poll rules
+        run: node test/core.test.mjs
+
+      - name: Front-end and scripts parse
+        run: |
+          for f in public/app.js src/*.mjs netlify/functions/*.mjs scripts/*.mjs dev-server.mjs; do
+            node --check "$f"
+          done
+
+      - name: Version agrees everywhere
+        run: node scripts/check-version.mjs
+
+      - name: Pull request raises the version
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-version.mjs --unreleased

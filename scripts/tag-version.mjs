@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { checkVersion } from "./check-version.mjs";
 
 const dry = !!process.env.DRY_RUN;
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
@@ -17,14 +18,7 @@ const exists = (tag) => {
   }
 };
 
-const version = readFileSync("VERSION", "utf8").trim();
-if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`VERSION must look like 0.3.0, found "${version}".`);
-for (const [where, found] of [
-  ["package.json", JSON.parse(readFileSync("package.json", "utf8")).version],
-  ["public/index.html footer", (readFileSync("public/index.html", "utf8").match(/Version ([\d.]+)<\/footer>/) || [])[1]],
-]) {
-  if (found !== version) throw new Error(`${where} says ${found}, VERSION says ${version}. They must agree.`);
-}
+const version = checkVersion();
 const changelog = readFileSync("CHANGELOG.md", "utf8");
 
 function delta(v) {

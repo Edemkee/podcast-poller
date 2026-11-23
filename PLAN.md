@@ -12,7 +12,7 @@ States: `open`, `in progress`, `rejected`, `done`.
 | 6 | Adopt the dev workflow: PLAN.md, VERSION, decision log, pull requests, secret hygiene | done | v0.2.1 |
 | 7 | Confirm on the live site that the 401 errors no longer block creating a poll | done | v0.2.2; 2026-11-12, v0.2.1 live: next week's poll created on the first click (one POST, 200) |
 | 8 | Keep the browser walkthrough (phone, tablet, desktop) in the repository as an automated test | open | idea from Claude, 2026-11-12; today only the poll rules have tests |
-| 9 | CI: run the tests on every pull request | open | optional for a small project; offered 2026-11-12 |
+| 9 | CI: run the tests on every pull request | done | v0.4.0; also checks the version rule |
 | 10 | FEATURES.md and ARCHITECTURE.md | open | optional for a small project; revisit if the project grows |
-| 11 | Limit who can edit or remove other people's answers | open | the owner allowed it "for now" on 2026-11-10; since v0.3.0 saving an edit needs the password, removing does not |
+| 11 | Limit who can edit or remove other people's answers | done | v0.4.0: saving, changing and removing all need the shared password; anyone who has it can still change anyone's answer |
 | 12 | Password needed to submit an answer, field right of the name, masked with a Show button | done | v0.3.0; owner request 2026-11-23; password set in Netlify as `POLL_PASSWORD` |

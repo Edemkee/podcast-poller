@@ -30,17 +30,17 @@ class Refusal extends Error {
   }
 }
 
-// Submitting an answer needs the shared password. The password itself is never in the
+// Saving (new or changed) or removing an answer needs the shared password. The password itself is never in the
 // repository: the server reads it from the POLL_PASSWORD environment variable.
 function checkPassword(given, expected) {
   if (typeof expected !== "string" || !expected) {
     throw new Refusal(403, "Answers are switched off: the site's password has not been set up yet.");
   }
-  if (typeof given !== "string" || !given) throw new Refusal(403, "Enter the password to submit.");
+  if (typeof given !== "string" || !given) throw new Refusal(403, "Enter the password first.");
   // Compare fixed-length digests so the check takes the same time whatever was typed.
   const digest = (s) => createHash("sha256").update(s, "utf8").digest();
   if (!timingSafeEqual(digest(given), digest(expected))) {
-    throw new Refusal(403, "Wrong password. Your answer was not saved.");
+    throw new Refusal(403, "Wrong password. Nothing was changed.");
   }
 }
 
@@ -127,6 +127,7 @@ function apply(data, body, today, newId, password) {
   }
 
   if (body.action === "remove") {
+    checkPassword(body.password, password);
     delete poll.responses[body.id];
     return {};
   }
