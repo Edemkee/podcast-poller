@@ -8,7 +8,8 @@ Newest decisions first. Each entry: date, decision, reason.
 
 ## 2026-11-23
 
-- **Submitting an answer needs a shared password,** typed in a box to the right of the name box, masked by default with a Show/Hide button. The server checks it (`checkPassword` in `src/poll-core.mjs`) for every saved answer, new or edited; creating a poll and removing an answer do not need it. Reason: owner request.
+- **CI runs on every pull request and every push to `main`** (`.github/workflows/ci.yml`): the poll-rule tests, a parse check of every script, and `scripts/check-version.mjs`, which fails if VERSION, package.json, the footer and the newest changelog heading disagree, or (on pull requests) if the version is already tagged. Wait for it to pass before asking the owner to merge. Reason: plan item 9; the version rule is easy to break by hand.
+- **Submitting, changing or removing an answer needs a shared password,** typed in a box to the right of the name box, masked by default with a Show/Hide button. The server checks it (`checkPassword` in `src/poll-core.mjs`) for every saved answer, new or edited, and (since v0.4.0) for every removal. Only creating a poll and reading the page work without it. The password box stays usable after submitting, so Remove can use it. Reason: owner request (removal since 2026-11-23, plan item 11).
 - **The password is never in the repository,** not in code, tests, docs, commits or pull requests. It lives only in the Netlify environment variable `POLL_PASSWORD`; tests use a made-up one. If `POLL_PASSWORD` is not set, every answer is refused, so set it before deploying. The browser does not store it. Reason: owner request; anything in the repo is public.
 
 ## 2026-11-12

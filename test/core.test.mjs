@@ -100,9 +100,14 @@ r = await handle(s, "GET", null, tue);
 assert.ok(!JSON.stringify(r.json).includes(PW), "the password is never sent back");
 ok("submitting needs the right password; wrong or missing ones save nothing");
 
-r = await handle(s, "POST", { action: "remove", weekStart: "2026-11-09", id: anna }, tue);
+for (const given of [undefined, "", "nope"]) {
+  r = await handle(s, "POST", { action: "remove", password: given, weekStart: "2026-11-09", id: anna }, tue);
+  assert.equal(r.status, 403);
+}
+assert.ok(s.peek().polls["2026-11-09"].responses[anna], "a refused removal keeps the answer");
+r = await handle(s, "POST", { action: "remove", password: PW, weekStart: "2026-11-09", id: anna }, tue);
 assert.equal(Object.keys(r.json.polls["2026-11-09"].responses).length, 1);
-ok("remove an answer");
+ok("removing an answer needs the password too");
 
 // concurrent save: first two writes lose the race, third wins
 s.failTimes(2);

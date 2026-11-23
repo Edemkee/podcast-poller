@@ -347,8 +347,9 @@
     $("barNote").classList.toggle("bad", note.bad);
     if (done && current) $("name").value = current.name;
     $("name").disabled = busy || done;
-    $("password").disabled = busy || done;
-    $("reveal").disabled = busy || done;
+    // The password stays usable after submitting: removing an answer needs it too.
+    $("password").disabled = busy;
+    $("reveal").disabled = busy;
     $("submit").disabled = busy;
     $("submit").textContent = busy ? "Saving…" : done ? "Change my answer" : current ? "Save changes" : "Submit my answer";
     $("cancel").hidden = done || !current;
@@ -376,10 +377,22 @@
     $("answer").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
   }
 
+  // Puts the cursor in the password box with a message, when the password is missing or refused.
+  function askForPassword(text) {
+    note = { text, bad: true };
+    renderBar();
+    $("password").focus({ preventScroll: true });
+    $("password").select();
+    $("password").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+  }
+  const refusedPassword = () => note.bad && /password/i.test(note.text);
+
   function removeAnswer(r) {
+    const password = $("password").value;
+    if (!password) return askForPassword(`Enter the password to remove ${r.name}'s answer.`);
     if (!confirm(`Remove ${r.name}'s answer?`)) return;
     const wasMine = r.id === mineId();
-    act({ action: "remove", weekStart: weekStart(), id: r.id }, () => {
+    act({ action: "remove", weekStart: weekStart(), id: r.id, password }, () => {
       if (wasMine) {
         const mine = cache.get("mine", {});
         delete mine[weekStart()];
@@ -387,6 +400,8 @@
       }
       $("name").value = cache.get("name", "");
       loadForm();
+    }).then(() => {
+      if (refusedPassword()) askForPassword(note.text);
     });
   }
 
@@ -426,12 +441,7 @@
       return;
     }
     const password = $("password").value;
-    if (!password) {
-      note = { text: "Enter the password to submit your answer.", bad: true };
-      renderBar();
-      $("password").focus();
-      return;
-    }
+    if (!password) return askForPassword("Enter the password to submit your answer.");
     const forOther = editingOther;
     const week = weekStart();
     act({ action: "vote", weekStart: week, id: editingId, name, password, slots: slotsFromDraft() }, (json) => {
@@ -444,7 +454,7 @@
       if (forOther) note = { text: `Saved ${name}'s answer.`, bad: false };
     }).then(() => {
       // A refused password leaves the answer open; put the cursor back in the password box.
-      if (note.bad && /password/i.test(note.text)) $("password").select();
+      if (refusedPassword()) askForPassword(note.text);
     });
   });
 

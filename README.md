@@ -43,7 +43,8 @@ It survives redeploys.
 
 ## Settings
 
-- `POLL_PASSWORD` (required, secret): the password for submitting an answer.
+- `POLL_PASSWORD` (required, secret): the password for submitting, changing or
+  removing an answer.
   Set it only in Netlify's environment variables, never in the repository.
   Changing it needs a redeploy (Deploys > Trigger deploy) to take effect.
 - Weeks run Monday to Sunday and "today" is judged in Europe/Budapest time.
@@ -63,12 +64,13 @@ Locally the data is written to `data/polls.json`.
 ## Working on it
 
 - `PLAN.md` lists what is done and what is open; `CHANGELOG.md` says what changed in each version; `CLAUDE.md` logs the decisions.
+- Every pull request runs the tests and the version check on GitHub (the "CI" check); merge only when it is green.
 - The version is in `VERSION` and in the page footer. Changes arrive as pull requests; merging one to `main` publishes the site and tags the version.
 
 ## Good to know
 
-- There are no logins. Submitting or changing an answer needs the shared
-  password; anyone with the link can still create a poll or remove an answer.
+- There are no logins. Submitting, changing or removing an answer needs the
+  shared password; anyone with the link can still see the poll and create one.
   Do not post the link publicly.
 - The browser remembers your name and which answer is yours. In a private
   window or after clearing site data, you get a blank form; submitting under
