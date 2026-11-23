@@ -36,7 +36,11 @@ http
         body = raw ? JSON.parse(raw) : null;
       } catch {}
       const now = process.env.FAKE_NOW ? new Date(process.env.FAKE_NOW) : undefined;
-      const { status, json } = await handle(store, req.method, body, { tz: process.env.POLL_TZ, now });
+      const { status, json } = await handle(store, req.method, body, {
+        tz: process.env.POLL_TZ,
+        password: process.env.POLL_PASSWORD,
+        now,
+      });
       res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" });
       return res.end(JSON.stringify(json));
     }

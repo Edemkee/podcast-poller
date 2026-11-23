@@ -49,9 +49,13 @@ export default async (req) => {
   }
 
   // Set POLL_TZ in Netlify's environment variables to change when a week "ends".
+  // POLL_PASSWORD (also a Netlify environment variable) is the password for submitting.
   const headers = { "cache-control": "no-store" };
   try {
-    const { status, json } = await handle(store, req.method, body, { tz: process.env.POLL_TZ });
+    const { status, json } = await handle(store, req.method, body, {
+      tz: process.env.POLL_TZ,
+      password: process.env.POLL_PASSWORD,
+    });
     return Response.json(json, { status, headers });
   } catch (err) {
     console.error("poll request failed:", err);

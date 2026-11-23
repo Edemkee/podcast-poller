@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.3.0 - 2026-11-23
+
+Minor: submitting an answer now needs the shared password.
+
+### Added
+- A password box to the right of the name box, masked by default, with a Show/Hide button.
+- The server checks the password before saving an answer; a missing or wrong one saves nothing and says so.
+- New setting `POLL_PASSWORD` (a Netlify environment variable). The password is never stored in the repository or in the browser.
+
 ## v0.2.2 - 2026-11-12
 
 Patch: documentation only, no change to how the poll behaves.

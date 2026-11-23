@@ -19,8 +19,11 @@ it from a Git repository rather than by dragging the folder into the browser.
 3. On Netlify: "Add new project" > "Import an existing project" > GitHub >
    pick the repository. Leave the build settings as they are (they are read
    from `netlify.toml`) and deploy.
-4. Open the `…netlify.app` address Netlify gives you, create this week's poll
-   and share the link.
+4. In Netlify, add the environment variable `POLL_PASSWORD` with the password
+   people will type to submit an answer (Project configuration > Environment
+   variables), then redeploy. Without it every answer is refused.
+5. Open the `…netlify.app` address Netlify gives you, create this week's poll
+   and share the link together with the password.
 
 If you prefer the command line: `npm install`, then `npx netlify-cli deploy --prod`.
 
@@ -40,6 +43,9 @@ It survives redeploys.
 
 ## Settings
 
+- `POLL_PASSWORD` (required, secret): the password for submitting an answer.
+  Set it only in Netlify's environment variables, never in the repository.
+  Changing it needs a redeploy (Deploys > Trigger deploy) to take effect.
 - Weeks run Monday to Sunday and "today" is judged in Europe/Budapest time.
   To change that, add an environment variable `POLL_TZ` in Netlify
   (for example `Europe/London`).
@@ -49,7 +55,7 @@ It survives redeploys.
 
 Needs Node 20 or newer, nothing else:
 
-    node dev-server.mjs      # then open http://localhost:8888
+    POLL_PASSWORD=try-me node dev-server.mjs   # then open http://localhost:8888
     node test/core.test.mjs  # checks the poll rules
 
 Locally the data is written to `data/polls.json`.
@@ -61,8 +67,9 @@ Locally the data is written to `data/polls.json`.
 
 ## Good to know
 
-- There are no logins. Anyone with the link can create a poll and edit or
-  remove any answer, as requested. Do not post the link publicly.
+- There are no logins. Submitting or changing an answer needs the shared
+  password; anyone with the link can still create a poll or remove an answer.
+  Do not post the link publicly.
 - The browser remembers your name and which answer is yours. In a private
   window or after clearing site data, you get a blank form; submitting under
   the same name updates your earlier answer instead of adding a second one.

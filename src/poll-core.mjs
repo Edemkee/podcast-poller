@@ -1,6 +1,7 @@
 // All poll rules live here so the same code runs on Netlify and in the local dev server.
 // The whole dataset is ONE JSON document: { polls: { "<monday ISO date>": poll } }.
 // Polls for weeks that have ended are dropped every time the file is read.
+import { createHash, timingSafeEqual } from "node:crypto";
 
 export const DEFAULT_TZ = "Europe/Budapest";
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -26,6 +27,20 @@ class Refusal extends Error {
   constructor(status, message) {
     super(message);
     this.status = status;
+  }
+}
+
+// Submitting an answer needs the shared password. The password itself is never in the
+// repository: the server reads it from the POLL_PASSWORD environment variable.
+function checkPassword(given, expected) {
+  if (typeof expected !== "string" || !expected) {
+    throw new Refusal(403, "Answers are switched off: the site's password has not been set up yet.");
+  }
+  if (typeof given !== "string" || !given) throw new Refusal(403, "Enter the password to submit.");
+  // Compare fixed-length digests so the check takes the same time whatever was typed.
+  const digest = (s) => createHash("sha256").update(s, "utf8").digest();
+  if (!timingSafeEqual(digest(given), digest(expected))) {
+    throw new Refusal(403, "Wrong password. Your answer was not saved.");
   }
 }
 
@@ -67,7 +82,7 @@ function cleanSlots(slots, weekStart) {
   return out;
 }
 
-function apply(data, body, today, newId) {
+function apply(data, body, today, newId, password) {
   if (!body || typeof body !== "object") throw new Refusal(400, "Nothing was sent.");
   const thisWeek = mondayOf(today);
 
@@ -85,6 +100,7 @@ function apply(data, body, today, newId) {
   if (!poll) throw new Refusal(404, "That poll no longer exists. Reload the page.");
 
   if (body.action === "vote") {
+    checkPassword(body.password, password);
     const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
     if (!name) throw new Refusal(400, "Add a name first.");
     if (name.length > 40) throw new Refusal(400, "Keep the name under 40 characters.");
@@ -137,7 +153,7 @@ export async function handle(store, method, body, opts = {}) {
 
     if (method === "POST") {
       try {
-        extra = apply(data, body, today, newId);
+        extra = apply(data, body, today, newId, opts.password);
         changed = true;
       } catch (err) {
         if (err instanceof Refusal) return { status: err.status, json: { error: err.message } };

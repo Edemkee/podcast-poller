@@ -14,7 +14,9 @@ function memoryStore(initial = null) {
     },
   };
 }
-const at = (iso) => ({ now: new Date(iso), tz: "Europe/Budapest" });
+// A made-up password for the tests; the real one lives only in Netlify's settings.
+const PW = "test-only-password";
+const at = (iso) => ({ now: new Date(iso), tz: "Europe/Budapest", password: PW });
 let n = 0;
 const ok = (name) => console.log("ok", ++n, name);
 
@@ -42,35 +44,35 @@ r = await handle(s, "POST", { action: "create", week: "next" }, tue);
 assert.deepEqual(Object.keys(r.json.polls).sort(), ["2026-11-09", "2026-11-16"]);
 ok("create this week and next week");
 
-r = await handle(s, "POST", { action: "vote", weekStart: "2026-11-09", name: "  Edem ",
+r = await handle(s, "POST", { action: "vote", password: PW, weekStart: "2026-11-09", name: "  Edem ",
   slots: { "2026-11-12": ["20:00", "19:00", "20:00"], "2026-11-13": ["21:30"], "2026-11-14": [] } }, tue);
 const id = r.json.id;
 assert.deepEqual(r.json.polls["2026-11-09"].responses[id].slots, { "2026-11-12": ["19:00", "20:00"], "2026-11-13": ["21:30"] });
 assert.equal(r.json.polls["2026-11-09"].responses[id].name, "Edem");
 ok("vote stored, trimmed, de-duplicated, custom time kept");
 
-r = await handle(s, "POST", { action: "vote", weekStart: "2026-11-09", id, name: "Edem", slots: { "2026-11-11": ["19:00"] } }, tue);
+r = await handle(s, "POST", { action: "vote", password: PW, weekStart: "2026-11-09", id, name: "Edem", slots: { "2026-11-11": ["19:00"] } }, tue);
 assert.equal(Object.keys(r.json.polls["2026-11-09"].responses).length, 1);
 assert.deepEqual(r.json.polls["2026-11-09"].responses[id].slots, { "2026-11-11": ["19:00"] });
 ok("editing replaces the answer");
 
-r = await handle(s, "POST", { action: "vote", weekStart: "2026-11-09", name: "edem", slots: {} }, tue);
+r = await handle(s, "POST", { action: "vote", password: PW, weekStart: "2026-11-09", name: "edem", slots: {} }, tue);
 assert.equal(r.json.id, id);
 assert.equal(Object.keys(r.json.polls["2026-11-09"].responses).length, 1);
 ok("same name without an id updates instead of duplicating");
 
-r = await handle(s, "POST", { action: "vote", weekStart: "2026-11-09", name: "Anna", slots: { "2026-11-11": ["19:00"] } }, tue);
+r = await handle(s, "POST", { action: "vote", password: PW, weekStart: "2026-11-09", name: "Anna", slots: { "2026-11-11": ["19:00"] } }, tue);
 const anna = r.json.id;
-r = await handle(s, "POST", { action: "vote", weekStart: "2026-11-09", id: anna, name: "Edem", slots: {} }, tue);
+r = await handle(s, "POST", { action: "vote", password: PW, weekStart: "2026-11-09", id: anna, name: "Edem", slots: {} }, tue);
 assert.equal(r.status, 409);
 ok("renaming onto another person's name is refused");
 
 for (const [bad, why] of [
-  [{ action: "vote", weekStart: "2026-11-09", name: "", slots: {} }, "empty name"],
-  [{ action: "vote", weekStart: "2026-11-09", name: "X", slots: { "2026-11-16": ["19:00"] } }, "day outside week"],
-  [{ action: "vote", weekStart: "2026-11-09", name: "X", slots: { "2026-11-12": ["25:00"] } }, "bad time"],
-  [{ action: "vote", weekStart: "2026-11-09", name: "X", slots: { "2026-11-12": "19:00" } }, "times not a list"],
-  [{ action: "vote", weekStart: "2026-11-09", name: "X".repeat(41), slots: {} }, "long name"],
+  [{ action: "vote", password: PW, weekStart: "2026-11-09", name: "", slots: {} }, "empty name"],
+  [{ action: "vote", password: PW, weekStart: "2026-11-09", name: "X", slots: { "2026-11-16": ["19:00"] } }, "day outside week"],
+  [{ action: "vote", password: PW, weekStart: "2026-11-09", name: "X", slots: { "2026-11-12": ["25:00"] } }, "bad time"],
+  [{ action: "vote", password: PW, weekStart: "2026-11-09", name: "X", slots: { "2026-11-12": "19:00" } }, "times not a list"],
+  [{ action: "vote", password: PW, weekStart: "2026-11-09", name: "X".repeat(41), slots: {} }, "long name"],
   [{ action: "create", week: "2027" }, "bad week"],
   [{ action: "nope", weekStart: "2026-11-09" }, "unknown action"],
   [null, "no body"],
@@ -78,10 +80,25 @@ for (const [bad, why] of [
   r = await handle(s, "POST", bad, tue);
   assert.equal(r.status, 400, why);
 }
-r = await handle(s, "POST", { action: "vote", weekStart: "2026-11-02", name: "X", slots: {} }, tue);
+r = await handle(s, "POST", { action: "vote", password: PW, weekStart: "2026-11-02", name: "X", slots: {} }, tue);
 assert.equal(r.status, 404);
 assert.equal((await handle(s, "DELETE", null, tue)).status, 405);
 ok("bad input refused with clear statuses");
+
+// password on submit
+const before = structuredClone(s.peek());
+for (const [given, why] of [[undefined, "no password"], ["", "empty password"], ["test-only-passwor", "wrong password"], [PW.toUpperCase(), "wrong case"], [42, "not a string"]]) {
+  r = await handle(s, "POST", { action: "vote", password: given, weekStart: "2026-11-09", name: "Zed", slots: {} }, tue);
+  assert.equal(r.status, 403, why);
+  assert.match(r.json.error, /password/i, why);
+}
+r = await handle(s, "POST", { action: "vote", password: PW, weekStart: "2026-11-09", name: "Zed", slots: {} }, { ...tue, password: undefined });
+assert.equal(r.status, 403, "server without a password refuses every answer");
+assert.match(r.json.error, /not been set up/);
+assert.deepEqual(s.peek(), before, "nothing was saved by a refused answer");
+r = await handle(s, "GET", null, tue);
+assert.ok(!JSON.stringify(r.json).includes(PW), "the password is never sent back");
+ok("submitting needs the right password; wrong or missing ones save nothing");
 
 r = await handle(s, "POST", { action: "remove", weekStart: "2026-11-09", id: anna }, tue);
 assert.equal(Object.keys(r.json.polls["2026-11-09"].responses).length, 1);
@@ -89,10 +106,10 @@ ok("remove an answer");
 
 // concurrent save: first two writes lose the race, third wins
 s.failTimes(2);
-r = await handle(s, "POST", { action: "vote", weekStart: "2026-11-16", name: "Bea", slots: { "2026-11-18": ["20:00"] } }, tue);
+r = await handle(s, "POST", { action: "vote", password: PW, weekStart: "2026-11-16", name: "Bea", slots: { "2026-11-18": ["20:00"] } }, tue);
 assert.equal(r.status, 200);
 s.failTimes(99);
-r = await handle(s, "POST", { action: "vote", weekStart: "2026-11-16", name: "Cili", slots: {} }, tue);
+r = await handle(s, "POST", { action: "vote", password: PW, weekStart: "2026-11-16", name: "Cili", slots: {} }, tue);
 assert.equal(r.status, 409);
 s.failTimes(0);
 ok("retries on a clashing save, gives up cleanly");
